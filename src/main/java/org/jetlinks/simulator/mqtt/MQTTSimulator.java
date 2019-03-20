@@ -3,6 +3,8 @@ package org.jetlinks.simulator.mqtt;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.google.common.collect.Maps;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
@@ -12,11 +14,19 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttVersion;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.hswebframework.expands.script.engine.DynamicScriptEngine;
+import org.hswebframework.expands.script.engine.DynamicScriptEngineFactory;
 import org.jetlinks.mqtt.client.*;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +44,8 @@ public class MQTTSimulator {
 
     static final Class channelClass;
 
+    static final String functionInvokeScriptFile = "./scripts/handler.js";
+
     String prefix = "test";
 
     String address = "127.0.0.1";
@@ -42,9 +54,35 @@ public class MQTTSimulator {
 
     int start = 0;
 
-    int limit = 10000;
+    int limit = 100;
 
-    Map<String, MqttClient> clientMap;
+    String scriptFile = functionInvokeScriptFile;
+
+    Map<String, ClientSession> clientMap;
+
+    Map<String, MessageHandler> messageHandlerMap = new HashMap<>();
+
+    @AllArgsConstructor
+    public class ClientSession {
+        MqttClient client;
+
+        public void sendMessage(String topic, Object msg) {
+            String json;
+            if (msg instanceof String) {
+                json = (String) msg;
+            } else {
+                json = JSON.toJSONString(msg);
+            }
+            client.publish(topic, Unpooled.copiedBuffer(json.getBytes()))
+                    .addListener(future -> {
+                        if (!future.isSuccess()) {
+                            System.out.println("发送消息:" + topic + "=>" + json + "  失败：" + future.cause());
+                        } else {
+                            System.out.println("发送消息:" + topic + "\n" + json);
+                        }
+                    });
+        }
+    }
 
     static {
         String os = System.getProperty("os.name");
@@ -63,11 +101,19 @@ public class MQTTSimulator {
 
     }
 
+    public void bindHandler(String topic, MessageHandler handler) {
+        messageHandlerMap.put(topic, handler);
+    }
+
     public void createMqttClient(String clientId, String username, String password) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
-            System.out.println(topic + "=>" + payload.toString(StandardCharsets.UTF_8));
-            // TODO: 19-3-19 Reply
+            String data = payload.toString(StandardCharsets.UTF_8);
+            System.out.println(topic + "=>" + data);
+            MessageHandler handler = messageHandlerMap.get(topic);
+            if (null != handler) {
+                handler.handle(JSON.parseObject(data), clientMap.get(clientId));
+            }
         });
         mqttClient.setEventLoop(eventLoopGroup);
         mqttClient.getClientConfig().setChannelClass(channelClass);
@@ -100,7 +146,7 @@ public class MQTTSimulator {
                         if (result.getReturnCode() != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                             mqttClient.disconnect();
                         } else {
-                            clientMap.put(clientId, mqttClient);
+                            clientMap.put(clientId, new ClientSession(mqttClient));
                             System.out.println("success:" + clientId);
                         }
                     } catch (Exception e) {
@@ -110,6 +156,13 @@ public class MQTTSimulator {
     }
 
     public void start() throws Exception {
+        String scriptFileContent = new String(Files.readAllBytes(Paths.get(scriptFile)));
+        DynamicScriptEngine engine = DynamicScriptEngineFactory.getEngine("js");
+        engine.compile("handle", scriptFileContent);
+        Map<String, Object> context = Maps.newHashMap();
+        context.put("simulator", this);
+        context.put("logger", LoggerFactory.getLogger("message.handler"));
+        engine.execute("handle", context).getIfSuccess();
         int end = start + limit;
         for (int i = start; i < end; i++) {
             createMqttClient(prefix + i, "simulator", "Simulator");
