@@ -27,10 +27,13 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author zhouhao
@@ -56,11 +59,39 @@ public class MQTTSimulator {
 
     int limit = 100;
 
+    //关联子设备的父设备数量
+    int childSize = 0;
+
+    //开启事件上报
+    boolean enableEvent = false;
+
+    //一次事件上报设备最大数量
+    int eventLimit = 10;
+
+    //事件上报频率
+    int eventRate = 10000;
+
+    String childPrefix = "child";
+
     String scriptFile = functionInvokeScriptFile;
 
     Map<String, ClientSession> clientMap;
 
     Map<String, MessageHandler> messageHandlerMap = new HashMap<>();
+
+    Map<String, MessageHandler> childMessageHandler = new HashMap<>();
+
+    Supplier<String> eventDataSuppliers;
+
+    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+
+    public void runRate(Runnable runnable, long time) {
+        executorService.scheduleAtFixedRate(runnable, 2000, time, TimeUnit.MILLISECONDS);
+    }
+
+    public void runDelay(Runnable runnable, long time) {
+        executorService.schedule(runnable, time, TimeUnit.MILLISECONDS);
+    }
 
     @AllArgsConstructor
     public class ClientSession {
@@ -78,7 +109,29 @@ public class MQTTSimulator {
                         if (!future.isSuccess()) {
                             System.out.println("发送消息:" + topic + "=>" + json + "  失败：" + future.cause());
                         } else {
-                            System.out.println("发送消息:" + topic + "\n" + json);
+                            System.out.println("发送消息:" + topic + "=>" + json);
+                        }
+                    });
+        }
+
+        public void sendChilDeviceMessage(String topic, String deviceId, Object msg) {
+            JSONObject json;
+            if (msg instanceof String) {
+                json = JSON.parseObject((String) msg);
+            } else {
+                json = (JSONObject) JSON.toJSON(msg);
+            }
+            json.put("deviceId", deviceId);
+            JSONObject message = new JSONObject();
+            message.put("topic", topic);
+            message.put("message", json);
+            message.put("childDeviceId", deviceId);
+            client.publish("/child-device-message", Unpooled.copiedBuffer(JSON.toJSONBytes(message)))
+                    .addListener(future -> {
+                        if (!future.isSuccess()) {
+                            System.out.println("发送消息:/child-device-message=>" + message + "  失败：" + future.cause());
+                        } else {
+                            System.out.println("发送消息:/child-device-message=>" + message);
                         }
                     });
         }
@@ -101,8 +154,16 @@ public class MQTTSimulator {
 
     }
 
+    public void onEvent(Supplier<String> eventDataSuppliers) {
+        this.eventDataSuppliers = eventDataSuppliers;
+    }
+
     public void bindHandler(String topic, MessageHandler handler) {
         messageHandlerMap.put(topic, handler);
+    }
+
+    public void bindChildHandler(String topic, MessageHandler handler) {
+        childMessageHandler.put(topic, handler);
     }
 
     public void createMqttClient(String clientId, String username, String password) throws Exception {
@@ -110,6 +171,14 @@ public class MQTTSimulator {
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
             System.out.println(topic + "=>" + data);
+            if ("/child-device-message".equals(topic)) {
+                JSONObject jsonObject = JSON.parseObject(data);
+                String childTopic = jsonObject.getString("childTopic");
+                MessageHandler handler = childMessageHandler.get(childTopic);
+                if (null != handler) {
+                    handler.handle(jsonObject.getJSONObject("childMessage"), clientMap.get(clientId));
+                }
+            }
             MessageHandler handler = messageHandlerMap.get(topic);
             if (null != handler) {
                 handler.handle(JSON.parseObject(data), clientMap.get(clientId));
@@ -166,6 +235,22 @@ public class MQTTSimulator {
         int end = start + limit;
         for (int i = start; i < end; i++) {
             createMqttClient(prefix + i, "simulator", "Simulator");
+        }
+        if (enableEvent && eventDataSuppliers != null) {
+            runRate(this::doPushEvent, eventRate);
+        }
+    }
+
+    public void doPushEvent() {
+        int clientSize = this.clientMap.size();
+        int eventLimit = Math.min(this.eventLimit, clientSize);
+        Random random = new Random();
+        while (eventLimit >= 0) {
+            ClientSession session = clientMap.get(prefix + random.nextInt(clientSize));
+            if (session != null) {
+                session.sendMessage("/event", eventDataSuppliers.get());
+            }
+            eventLimit--;
         }
     }
 
