@@ -16,14 +16,17 @@ import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttVersion;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.netty.util.internal.SocketUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.hswebframework.expands.script.engine.DynamicScriptEngine;
 import org.hswebframework.expands.script.engine.DynamicScriptEngineFactory;
 import org.jetlinks.mqtt.client.*;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -58,9 +61,6 @@ public class MQTTSimulator {
     int start = 0;
 
     int limit = 100;
-
-    //关联子设备的父设备数量
-    int childSize = 0;
 
     //开启事件上报
     boolean enableEvent = false;
@@ -121,7 +121,7 @@ public class MQTTSimulator {
             } else {
                 json = (JSONObject) JSON.toJSON(msg);
             }
-            json.put("deviceId", deviceId);
+            json.put("clientId", deviceId);
             JSONObject message = new JSONObject();
             message.put("topic", topic);
             message.put("message", json);
@@ -166,7 +166,7 @@ public class MQTTSimulator {
         childMessageHandler.put(topic, handler);
     }
 
-    public void createMqttClient(String clientId, String username, String password) throws Exception {
+    public void createMqttClient(String clientId, String username, String password, InetSocketAddress bind) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
@@ -184,6 +184,8 @@ public class MQTTSimulator {
                 handler.handle(JSON.parseObject(data), clientMap.get(clientId));
             }
         });
+
+        mqttClient.getClientConfig().setBindAddress(bind);
         mqttClient.setEventLoop(eventLoopGroup);
         mqttClient.getClientConfig().setChannelClass(channelClass);
         mqttClient.getClientConfig().setClientId(clientId);
@@ -233,12 +235,27 @@ public class MQTTSimulator {
         context.put("logger", LoggerFactory.getLogger("message.handler"));
         engine.execute("handle", context).getIfSuccess();
         int end = start + limit;
+        int len = 0;
         for (int i = start; i < end; i++) {
-            createMqttClient(prefix + i, "simulator", "Simulator");
+            //secureId|timestamp
+            String username = "test|" + System.currentTimeMillis();
+            //md5(secureId|timestamp|secureKey)
+            String password = DigestUtils.md5Hex(username + "|" + "test");
+
+            createMqttClient(prefix + i, username, password, createAddress(len++));
         }
         if (enableEvent && eventDataSuppliers != null) {
             runRate(this::doPushEvent, eventRate);
         }
+    }
+
+    private String bind = null;
+
+    public InetSocketAddress createAddress(int len) {
+        if (bind == null || bind.isEmpty()) {
+            return null;
+        }
+        return new InetSocketAddress(bind, 10000 + len);
     }
 
     public void doPushEvent() {
