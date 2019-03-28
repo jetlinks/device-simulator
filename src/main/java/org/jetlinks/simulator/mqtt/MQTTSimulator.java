@@ -14,15 +14,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttVersion;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-import io.netty.util.internal.SocketUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.hswebframework.expands.script.engine.DynamicScriptEngine;
 import org.hswebframework.expands.script.engine.DynamicScriptEngineFactory;
+import org.hswebframework.utils.StringUtils;
 import org.jetlinks.mqtt.client.*;
 import org.slf4j.LoggerFactory;
 
@@ -31,11 +29,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -84,6 +84,12 @@ public class MQTTSimulator {
     Supplier<String> eventDataSuppliers;
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+
+    BiConsumer<Integer, MQTTAuth> authBiConsumer;
+
+    public void onAuth(BiConsumer<Integer, MQTTAuth> consumer) {
+        this.authBiConsumer = consumer;
+    }
 
     public void runRate(Runnable runnable, long time) {
         executorService.scheduleAtFixedRate(runnable, 2000, time, TimeUnit.MILLISECONDS);
@@ -166,31 +172,32 @@ public class MQTTSimulator {
         childMessageHandler.put(topic, handler);
     }
 
-    public void createMqttClient(String clientId, String username, String password, InetSocketAddress bind) throws Exception {
+    public void createMqttClient(MQTTAuth auth, InetSocketAddress bind) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
             System.out.println(topic + "=>" + data);
-            if ("/child-device-message".equals(topic)) {
-                JSONObject jsonObject = JSON.parseObject(data);
-                String childTopic = jsonObject.getString("childTopic");
-                MessageHandler handler = childMessageHandler.get(childTopic);
-                if (null != handler) {
-                    handler.handle(jsonObject.getJSONObject("childMessage"), clientMap.get(clientId));
-                }
-            }
             MessageHandler handler = messageHandlerMap.get(topic);
             if (null != handler) {
-                handler.handle(JSON.parseObject(data), clientMap.get(clientId));
+                handler.handle(JSON.parseObject(data), clientMap.get(auth.getClientId()));
+            } else {
+                if ("/child-device-message".equals(topic)) {
+                    JSONObject jsonObject = JSON.parseObject(data);
+                    String childTopic = jsonObject.getString("childTopic");
+                    handler = childMessageHandler.get(childTopic);
+                    if (null != handler) {
+                        handler.handle(jsonObject.getJSONObject("childMessage"), clientMap.get(auth.getClientId()));
+                    }
+                }
             }
         });
 
         mqttClient.getClientConfig().setBindAddress(bind);
         mqttClient.setEventLoop(eventLoopGroup);
         mqttClient.getClientConfig().setChannelClass(channelClass);
-        mqttClient.getClientConfig().setClientId(clientId);
-        mqttClient.getClientConfig().setUsername(username);
-        mqttClient.getClientConfig().setPassword(password);
+        mqttClient.getClientConfig().setClientId(auth.getClientId());
+        mqttClient.getClientConfig().setUsername(auth.getUsername());
+        mqttClient.getClientConfig().setPassword(auth.getPassword());
         mqttClient.getClientConfig().setProtocolVersion(MqttVersion.MQTT_3_1_1);
         mqttClient.getClientConfig().setReconnect(true);
         AtomicLong errorCounter = new AtomicLong();
@@ -201,7 +208,7 @@ public class MQTTSimulator {
                 if (errorCounter.incrementAndGet() >= 5) {
                     mqttClient.disconnect();
                 } else {
-                    System.out.println("客户端" + clientId + "连接失败:" + cause.getMessage());
+                    System.out.println("客户端" + auth.getClientId() + "连接失败," + cause.getClass().getSimpleName() + ":" + cause.getMessage());
                 }
             }
 
@@ -217,8 +224,8 @@ public class MQTTSimulator {
                         if (result.getReturnCode() != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                             mqttClient.disconnect();
                         } else {
-                            clientMap.put(clientId, new ClientSession(mqttClient));
-                            System.out.println("success:" + clientId);
+                            clientMap.put(auth.getClientId(), new ClientSession(mqttClient));
+                            System.out.println("success:" + auth.getClientId());
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -237,26 +244,43 @@ public class MQTTSimulator {
         int end = start + limit;
         int len = 0;
         for (int i = start; i < end; i++) {
-            //secureId|timestamp
-            String username = "test|" + System.currentTimeMillis();
-            //md5(secureId|timestamp|secureKey)
-            String password = DigestUtils.md5Hex(username + "|" + "test");
-
-            createMqttClient(prefix + i, username, password, createAddress(len++));
+            MQTTAuth auth = new MQTTAuth();
+            auth.setClientId(prefix + i);
+            if (authBiConsumer != null) {
+                authBiConsumer.accept(i, auth);
+            } else {
+                //secureId|timestamp
+                String username = "test|" + System.currentTimeMillis();
+                //md5(secureId|timestamp|secureKey)
+                String password = DigestUtils.md5Hex(username + "|" + "test");
+                auth.setUsername(username);
+                auth.setPassword(password);
+            }
+            createMqttClient(auth, createAddress(len++));
         }
         if (enableEvent && eventDataSuppliers != null) {
             runRate(this::doPushEvent, eventRate);
         }
     }
 
-    private String bind = null;
+    private String[] binds = null;
 
-    public InetSocketAddress createAddress(int len) {
-        if (bind == null || bind.isEmpty()) {
+    private int bindPortStart = 10000;
+
+    private Map<String, AtomicInteger> portCounter = new ConcurrentHashMap<>();
+
+    public InetSocketAddress createAddress(int index) {
+        if (binds == null || binds.length == 0) {
             return null;
         }
-        return new InetSocketAddress(bind, 10000 + len);
+        //选择网卡
+        //----------------当前设备索引/(总数/网卡数量)
+        String host = binds[index / (limit / binds.length)];
+        return new InetSocketAddress(host, portCounter
+                .computeIfAbsent(host, h -> new AtomicInteger(bindPortStart))
+                .incrementAndGet());
     }
+
 
     public void doPushEvent() {
         int clientSize = this.clientMap.size();
@@ -273,14 +297,20 @@ public class MQTTSimulator {
 
     public static void main(String[] args) throws Exception {
         JSONObject jsonObject = new JSONObject();
-        System.getProperties().entrySet()
+
+        System.getProperties()
+                .entrySet()
                 .stream()
                 .flatMap(e -> System.getenv().entrySet().stream())
                 .filter(e -> String.valueOf(e.getKey()).startsWith("mqtt."))
                 .forEach(e -> jsonObject.put(String.valueOf(e.getKey()).substring(5), e.getValue()));
         for (String arg : args) {
             String[] split = arg.split("[=]");
-            jsonObject.put(split[0], split.length == 2 ? split[1] : true);
+            jsonObject.put(split[0].startsWith("mqtt.") ? split[0].substring(5) : split[0], split.length == 2 ? split[1] : true);
+        }
+        String binds = jsonObject.getString("binds");
+        if (!StringUtils.isNullOrEmpty(binds)) {
+            jsonObject.put("binds", binds.split("[,]"));
         }
         System.out.println(JSON.toJSONString(jsonObject, SerializerFeature.PrettyFormat));
         MQTTSimulator MQTTSimulator = jsonObject.toJavaObject(MQTTSimulator.class);

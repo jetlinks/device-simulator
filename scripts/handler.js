@@ -51,5 +51,11 @@ simulator.onEvent(function () {
         timestamp: new Date().getTime(),
         data: ((Math.random() * 100) + 1).toFixed(2)
     })
-
 });
+
+// simulator.onAuth(function(auth,index){
+//     auth.setClientId("simulator-device-"+index);
+//     auth.setUsername("simulator-device-"+index);
+//     auth.setPassword("simulator-device-"+index);
+//
+// });
