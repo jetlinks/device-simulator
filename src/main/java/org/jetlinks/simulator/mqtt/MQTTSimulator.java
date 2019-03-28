@@ -42,8 +42,6 @@ import java.util.function.Supplier;
  * @author zhouhao
  * @since 1.0.0
  */
-@Getter
-@Setter
 public class MQTTSimulator {
 
     static final EventLoopGroup eventLoopGroup;
@@ -52,28 +50,54 @@ public class MQTTSimulator {
 
     static final String functionInvokeScriptFile = "./scripts/handler.js";
 
+    @Getter
+    @Setter
     String prefix = "test";
 
+    @Getter
+    @Setter
     String address = "127.0.0.1";
 
+    @Getter
+    @Setter
     int port = 1883;
 
+    @Getter
+    @Setter
     int start = 0;
 
+    @Getter
+    @Setter
     int limit = 100;
 
     //开启事件上报
+    @Getter
+    @Setter
+
     boolean enableEvent = false;
 
     //一次事件上报设备最大数量
+    @Getter
+    @Setter
     int eventLimit = 10;
 
     //事件上报频率
+    @Getter
+    @Setter
     int eventRate = 10000;
 
-    String childPrefix = "child";
-
+    @Getter
+    @Setter
     String scriptFile = functionInvokeScriptFile;
+
+    @Getter
+    @Setter
+    private String[] binds = null;
+
+    @Getter
+    @Setter
+    private int bindPortStart = 10000;
+
 
     Map<String, ClientSession> clientMap;
 
@@ -263,10 +287,6 @@ public class MQTTSimulator {
         }
     }
 
-    private String[] binds = null;
-
-    private int bindPortStart = 10000;
-
     private Map<String, AtomicInteger> portCounter = new ConcurrentHashMap<>();
 
     public InetSocketAddress createAddress(int index) {
@@ -312,9 +332,9 @@ public class MQTTSimulator {
         if (!StringUtils.isNullOrEmpty(binds)) {
             jsonObject.put("binds", binds.split("[,]"));
         }
-        System.out.println(JSON.toJSONString(jsonObject, SerializerFeature.PrettyFormat));
         MQTTSimulator MQTTSimulator = jsonObject.toJavaObject(MQTTSimulator.class);
         MQTTSimulator.clientMap = new HashMap<>(MQTTSimulator.limit);
+        System.out.println("使用配置:\n" + JSON.toJSONString(MQTTSimulator, SerializerFeature.PrettyFormat));
         MQTTSimulator.start();
     }
 
