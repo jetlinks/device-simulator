@@ -1,5 +1,4 @@
-# device-simulator
-设备模拟器
+# 设备模拟器
 
 启动方式:
 1. java启动类:`org.jetlinks.simulator.mqtt.MQTTSimulator`
@@ -7,7 +6,8 @@
 ```bash
 docker run -v handler.js:/scripts/handler.js --it --rm jetlinks/device-simulator
 ```
-3. jar包运行,[下载发布包](https://github.com/jetlinks/device-simulator/raw/master/dist/device-simulator.jar),执行命令`java -jar device-simulator.jar`
+3. jar包运行,[下载jar包](https://github.com/jetlinks/device-simulator/raw/master/dist/device-simulator.jar),
+执行命令`java -jar device-simulator.jar`
 
 # 配置
 可通过环境变量或者启动参数设置一下配置
@@ -24,7 +24,7 @@ mqtt.binds=192.168.10.10,192.168.10.11 #绑定网卡(模拟设备数量较多时
 mqtt.bindPortStart=10000 # 指定绑定网卡时,端口的初始值,每个网卡依次递增
 ```
 
-理论上,模拟设备数量小于等于:绑定网卡数量*(65535 - bindPortStart).
+理论上,模拟设备数量小于绑定网卡数量*(65535 - bindPortStart).
 
 注意: linux上默认限制了端口数量,可通过命令: 
 `cat /proc/sys/net/ipv4/ip_local_port_range`
@@ -34,7 +34,6 @@ mqtt.bindPortStart=10000 # 指定绑定网卡时,端口的初始值,每个网卡
 ```bash
  sudo ifconfig wlp2s0:1 192.168.10.11 up
 ```
-
  
 # 模拟消息收发
 模拟器通过js脚本来处理消息，默认脚本文件为:`./scripts/handler.js`,可通过
