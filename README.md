@@ -4,7 +4,7 @@
 1. java启动类:`org.jetlinks.simulator.mqtt.MQTTSimulator`
 2. docker:
 ```bash
-docker run -v handler.js:/scripts/handler.js --it --rm jetlinks/device-simulator
+docker run -v handler.js:/scripts/handler.js -it --rm jetlinks/device-simulator
 ```
 3. jar包运行,[下载jar包](https://github.com/jetlinks/device-simulator/raw/master/dist/device-simulator.jar),
 执行命令`java -jar device-simulator.jar`
@@ -26,14 +26,15 @@ mqtt.bindPortStart=10000 # 指定绑定网卡时,端口的初始值,每个网卡
 
 理论上,模拟设备数量小于绑定网卡数量*(65535 - bindPortStart).
 
+添加虚拟网卡到wlp2s0命令:
+```bash
+ sudo ifconfig wlp2s0:1 192.168.10.11 up
+```
+
 注意: linux上默认限制了端口数量,可通过命令: 
 `cat /proc/sys/net/ipv4/ip_local_port_range`
 查看.可通过修改此文件加大端口限制.
 
-添加虚拟网卡到wlp2s0:
-```bash
- sudo ifconfig wlp2s0:1 192.168.10.11 up
-```
  
 # 模拟消息收发
 模拟器通过js脚本来处理消息，默认脚本文件为:`./scripts/handler.js`,可通过
