@@ -7,7 +7,7 @@
 ```bash
 docker run -v handler.js:/scripts/handler.js --it --rm jetlinks/device-simulator
 ```
-3. jar包运行,[下载发布包](),执行命令`java -jar device-simulator.jar`
+3. jar包运行,[下载发布包](https://github.com/jetlinks/device-simulator/raw/master/dist/device-simulator.jar),执行命令`java -jar device-simulator.jar`
 
 # 配置
 可通过环境变量或者启动参数设置一下配置
