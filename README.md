@@ -22,6 +22,11 @@ mqtt.eventRate=100000   #时间上报频率,毫秒
 mqtt.scriptFile=./scripts/handler.js #消息处理脚本
 mqtt.binds=192.168.10.10,192.168.10.11 #绑定网卡(模拟设备数量较多时建议配置多个虚拟网卡)
 mqtt.bindPortStart=10000 # 指定绑定网卡时,端口的初始值,每个网卡依次递增
+
+mqtt.ssl=false                          #是否开启ssl双向认证
+mqtt.p12Path=./ssl/jetlinks-client.p12  #p12客户端证书地址
+mqtt.p12Password=jetlinks               #证书密码
+mqtt.cerPath=./ssl/jetlinks-server.cer  #信任ca证书
 ```
 
 理论上,模拟设备数量小于绑定网卡数量*(65535 - bindPortStart).

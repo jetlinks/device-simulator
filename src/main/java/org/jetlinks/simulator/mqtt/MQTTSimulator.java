@@ -115,15 +115,15 @@ public class MQTTSimulator {
 
     @Getter
     @Setter
-    private String p12Path;
+    private String p12Path = "./ssl/jetlinks-client.p12";
 
     @Getter
     @Setter
-    private String p12Password;
+    private String p12Password = "jetlinks";
 
     @Getter
     @Setter
-    private String cerPath;
+    private String cerPath = "./ssl/jetlinks-server.cer";
 
 
     Map<String, ClientSession> clientMap;
