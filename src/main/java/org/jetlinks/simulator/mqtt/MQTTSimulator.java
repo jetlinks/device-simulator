@@ -14,9 +14,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttVersion;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.hswebframework.expands.script.engine.DynamicScriptEngine;
 import org.hswebframework.expands.script.engine.DynamicScriptEngineFactory;
@@ -24,10 +27,17 @@ import org.hswebframework.utils.StringUtils;
 import org.jetlinks.mqtt.client.*;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -97,6 +107,23 @@ public class MQTTSimulator {
     @Getter
     @Setter
     private int bindPortStart = 10000;
+
+
+    @Getter
+    @Setter
+    private boolean ssl = false;
+
+    @Getter
+    @Setter
+    private String p12Path;
+
+    @Getter
+    @Setter
+    private String p12Password;
+
+    @Getter
+    @Setter
+    private String cerPath;
 
 
     Map<String, ClientSession> clientMap;
@@ -196,6 +223,33 @@ public class MQTTSimulator {
         childMessageHandler.put(topic, handler);
     }
 
+
+    private SslContext sslContext;
+
+    @SneakyThrows
+    public SslContext getSSLContext() {
+        if (ssl && sslContext == null) {
+            Objects.requireNonNull(p12Path, "p12Path不能为空");
+            Objects.requireNonNull(cerPath, "cerPath不能为空");
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            keyStore.load(new FileInputStream(p12Path), p12Password.toCharArray());
+            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            CertificateFactory cAf = CertificateFactory.getInstance("X.509");
+            FileInputStream caIn = new FileInputStream(cerPath);
+            X509Certificate ca = (X509Certificate) cAf.generateCertificate(caIn);
+            KeyStore caKs = KeyStore.getInstance("JKS");
+            caKs.load(null, null);
+            caKs.setCertificateEntry("ca-certificate", ca);
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance("PKIX");
+            tmf.init(caKs);
+            keyManagerFactory.init(keyStore, p12Password.toCharArray());
+            sslContext = SslContextBuilder.forServer(keyManagerFactory)
+                    .trustManager(tmf)
+                    .build();
+        }
+        return sslContext;
+    }
+
     public void createMqttClient(MQTTAuth auth, InetSocketAddress bind) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
@@ -216,6 +270,12 @@ public class MQTTSimulator {
             }
         });
 
+        if (ssl) {
+            //开启双向认证
+            mqttClient.getClientConfig().setSslEngineConsumer(engine -> {
+                engine.setUseClientMode(true);
+            });
+        }
         mqttClient.getClientConfig().setBindAddress(bind);
         mqttClient.setEventLoop(eventLoopGroup);
         mqttClient.getClientConfig().setChannelClass(channelClass);
@@ -224,6 +284,7 @@ public class MQTTSimulator {
         mqttClient.getClientConfig().setPassword(auth.getPassword());
         mqttClient.getClientConfig().setProtocolVersion(MqttVersion.MQTT_3_1_1);
         mqttClient.getClientConfig().setReconnect(true);
+        mqttClient.getClientConfig().setSslContext(getSSLContext());
         AtomicLong errorCounter = new AtomicLong();
 
         mqttClient.setCallback(new MqttClientCallback() {
