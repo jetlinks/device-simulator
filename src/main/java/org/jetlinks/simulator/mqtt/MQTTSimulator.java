@@ -284,6 +284,7 @@ public class MQTTSimulator {
         mqttClient.getClientConfig().setPassword(auth.getPassword());
         mqttClient.getClientConfig().setProtocolVersion(MqttVersion.MQTT_3_1_1);
         mqttClient.getClientConfig().setReconnect(true);
+        mqttClient.getClientConfig().setRetryInterval(5);
         mqttClient.getClientConfig().setSslContext(getSSLContext());
         AtomicLong errorCounter = new AtomicLong();
 

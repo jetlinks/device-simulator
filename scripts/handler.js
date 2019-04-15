@@ -26,7 +26,7 @@ simulator.bindHandler("/read-property", function (message, session) {
     session.sendMessage("/read-property-reply", JSON.stringify({
         messageId: messageId,
         timestamp: new Date().getTime(),
-        values: {"name": "1234"},
+        properties: {"name": "1234"},
         success: true
     }))
 });
@@ -38,7 +38,7 @@ simulator.bindChildHandler("/read-property", function (message, session) {
     session.sendChilDeviceMessage("/read-property-reply", message.deviceId, JSON.stringify({
         messageId: messageId,
         timestamp: new Date().getTime(),
-        values: {"name": "3456"},
+        properties: {"name": "3456"},
         success: true
     }))
 });
