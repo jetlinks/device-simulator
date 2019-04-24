@@ -28,7 +28,6 @@ import org.jetlinks.mqtt.client.*;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.FileInputStream;
 import java.net.InetSocketAddress;
@@ -46,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
  * @author zhouhao
@@ -132,7 +131,7 @@ public class MQTTSimulator {
 
     Map<String, MessageHandler> childMessageHandler = new HashMap<>();
 
-    Supplier<String> eventDataSuppliers;
+    BiConsumer<Integer, ClientSession> eventDataSuppliers;
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2);
 
@@ -151,8 +150,10 @@ public class MQTTSimulator {
     }
 
     @AllArgsConstructor
+    @Getter
     public class ClientSession {
-        MqttClient client;
+        private MqttClient client;
+        private MQTTAuth auth;
 
         public void sendMessage(String topic, Object msg) {
             String json;
@@ -211,8 +212,8 @@ public class MQTTSimulator {
 
     }
 
-    public void onEvent(Supplier<String> eventDataSuppliers) {
-        this.eventDataSuppliers = eventDataSuppliers;
+    public void onEvent(BiConsumer<Integer, ClientSession> clientSessionBiConsumer) {
+        this.eventDataSuppliers = clientSessionBiConsumer;
     }
 
     public void bindHandler(String topic, MessageHandler handler) {
@@ -228,6 +229,7 @@ public class MQTTSimulator {
 
     @SneakyThrows
     public SslContext getSSLContext() {
+
         if (ssl && sslContext == null) {
             Objects.requireNonNull(p12Path, "p12Path不能为空");
             Objects.requireNonNull(cerPath, "cerPath不能为空");
@@ -248,6 +250,12 @@ public class MQTTSimulator {
                     .build();
         }
         return sslContext;
+    }
+
+    private Consumer<ClientSession> onConnect;
+
+    public void onConnect(Consumer<ClientSession> consumer) {
+        this.onConnect = consumer;
     }
 
     public void createMqttClient(MQTTAuth auth, InetSocketAddress bind) throws Exception {
@@ -300,7 +308,10 @@ public class MQTTSimulator {
 
             @Override
             public void onSuccessfulReconnect() {
-
+                ClientSession session = clientMap.get(auth.getClientId());
+                if (null != session && null != onConnect) {
+                    onConnect.accept(session);
+                }
             }
         });
         mqttClient.connect(address, port)
@@ -310,8 +321,13 @@ public class MQTTSimulator {
                         if (result.getReturnCode() != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                             mqttClient.disconnect();
                         } else {
-                            clientMap.put(auth.getClientId(), new ClientSession(mqttClient));
-                            System.out.println("success:" + auth.getClientId());
+                            ClientSession session = new ClientSession(mqttClient, auth);
+
+                            clientMap.put(auth.getClientId(), session);
+                            if (null != onConnect) {
+                                onConnect.accept(session);
+                            }
+                            //System.out.println("success:" + auth.getClientId());
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -365,15 +381,22 @@ public class MQTTSimulator {
 
 
     public void doPushEvent() {
-        int clientSize = this.clientMap.size();
-        int eventLimit = Math.min(this.eventLimit, clientSize);
-        Random random = new Random();
-        while (eventLimit >= 0) {
-            ClientSession session = clientMap.get(prefix + random.nextInt(clientSize));
-            if (session != null) {
-                session.sendMessage("/event", eventDataSuppliers.get());
+        System.out.println("开始上报设备事件");
+        try {
+            int clientSize = this.clientMap.size();
+            List<ClientSession> all = new ArrayList<>(this.clientMap.values());
+
+            int eventLimit = Math.min(this.eventLimit, clientSize);
+            Random random = new Random();
+            while (eventLimit >= 0) {
+                ClientSession session = all.get(random.nextInt(clientSize));
+                if (session != null) {
+                    eventDataSuppliers.accept(eventLimit, session);
+                }
+                eventLimit--;
             }
-            eventLimit--;
+        }catch (Throwable e){
+            e.printStackTrace();
         }
     }
 

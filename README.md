@@ -45,6 +45,11 @@ mqtt.cerPath=./ssl/jetlinks-server.cer  #信任ca证书
 模拟器通过js脚本来处理消息，默认脚本文件为:`./scripts/handler.js`,可通过
 修改此脚本来实现自定义的消息处理
 ```js
+//连接成功时
+simulator.onConnect(function(session){
+    
+})
+
 //绑定topic处理
 simulator.bindHandler("/invoke-function", function (message, session) {
     var messageId = message.messageId;
@@ -58,14 +63,16 @@ simulator.bindHandler("/invoke-function", function (message, session) {
     }));
 });
 
-//当开启了事件上报时，调用此回调生成事件数据
-simulator.onEvent(function () {
-    return JSON.stringify({
+//当开启了事件上报时，定时(mqtt.eventRate)调用此回调发送事件数据,
+// index: 事件索引，由mqtt.eventLimit配置
+// session: mqtt连接会话
+simulator.onEvent(function (index, session) {
+    session.sendMessage(JSON.stringify({
         messageId: new Date().getTime() + "" + Math.round((Math.random() * 100000)),
         event: "temperature",
         timestamp: new Date().getTime(),
         data: ((Math.random() * 100) + 1).toFixed(2)
-    })
+    }))
 });
 //自定义帐号密码生成
 simulator.onAuth(function(auth,index){

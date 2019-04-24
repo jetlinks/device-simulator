@@ -167,6 +167,15 @@
 
     <repositories>
         <repository>
+            <id>hsweb-nexus</id>
+            <name>Nexus Repository</name>
+            <url>http://nexus.hsweb.me/content/groups/public/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+        <repository>
             <id>aliyun-nexus</id>
             <name>aliyun</name>
             <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
