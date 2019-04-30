@@ -16,6 +16,8 @@ mqtt.address=127.0.0.1  #mqtt服务地址
 mqtt.port=1883          #mqtt端口
 mqtt.start=0            #模拟设备数量起点
 mqtt.limit=100          #模拟设备数量
+mqtt.batchSize=100      #批量连接数
+
 mqtt.enableEvent=false  #启动事件上报
 mqtt.eventLimit=1000    #每次上报时间的最大设备数量
 mqtt.eventRate=100000   #时间上报频率,毫秒

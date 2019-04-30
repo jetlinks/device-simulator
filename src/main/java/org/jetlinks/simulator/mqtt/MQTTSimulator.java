@@ -16,6 +16,7 @@ import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttVersion;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.concurrent.Future;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,12 +39,11 @@ import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -77,7 +77,7 @@ public class MQTTSimulator {
 
     @Getter
     @Setter
-    int limit = 100;
+    int limit = 10000;
 
     //开启事件上报
     @Getter
@@ -123,6 +123,10 @@ public class MQTTSimulator {
     @Getter
     @Setter
     private String cerPath = "./ssl/jetlinks-server.cer";
+
+    @Getter
+    @Setter
+    private int batchSize = 100;
 
 
     Map<String, ClientSession> clientMap;
@@ -258,7 +262,7 @@ public class MQTTSimulator {
         this.onConnect = consumer;
     }
 
-    public void createMqttClient(MQTTAuth auth, InetSocketAddress bind) throws Exception {
+    public Future<MqttConnectResult> createMqttClient(MQTTAuth auth, InetSocketAddress bind, Consumer<MqttConnectResult> call) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
@@ -302,7 +306,7 @@ public class MQTTSimulator {
                 if (errorCounter.incrementAndGet() >= 5) {
                     mqttClient.disconnect();
                 } else {
-                    System.out.println("客户端" + auth.getClientId() + "连接失败," + cause.getClass().getSimpleName() + ":" + cause.getMessage());
+                    System.out.println("客户端" + auth.getClientId() + "连接失败" + (bind == null ? "," : "(本地ip:" + bind + "),") + cause.getClass().getSimpleName() + ":" + cause.getMessage());
                 }
             }
 
@@ -314,15 +318,14 @@ public class MQTTSimulator {
                 }
             }
         });
-        mqttClient.connect(address, port)
+        return mqttClient.connect(address, port)
                 .addListener(future -> {
                     try {
-                        MqttConnectResult result = (MqttConnectResult) future.get(15, TimeUnit.SECONDS);
+                        MqttConnectResult result = (MqttConnectResult) future.get(5, TimeUnit.SECONDS);
                         if (result.getReturnCode() != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                             mqttClient.disconnect();
                         } else {
                             ClientSession session = new ClientSession(mqttClient, auth);
-
                             clientMap.put(auth.getClientId(), session);
                             if (null != onConnect) {
                                 onConnect.accept(session);
@@ -331,8 +334,11 @@ public class MQTTSimulator {
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
+                    } finally {
+                        call.accept(null);
                     }
-                }).await(2, TimeUnit.SECONDS);
+                });//.await(2, TimeUnit.SECONDS);
+
     }
 
     public void start() throws Exception {
@@ -345,6 +351,9 @@ public class MQTTSimulator {
         engine.execute("handle", context).getIfSuccess();
         int end = start + limit;
         int len = 0;
+        LongAdder started = new LongAdder();
+        AtomicReference<CountDownLatch> semaphore = new AtomicReference<>(new CountDownLatch(Math.min(limit, batchSize)));
+        int counter = 0;
         for (int i = start; i < end; i++) {
             MQTTAuth auth = new MQTTAuth();
             auth.setClientId(prefix + i);
@@ -358,11 +367,23 @@ public class MQTTSimulator {
                 auth.setUsername(username);
                 auth.setPassword(password);
             }
-            createMqttClient(auth, createAddress(len++));
+            createMqttClient(auth, createAddress(len++), (result) -> {
+                started.add(1);
+                semaphore.get().countDown();
+                // System.out.println("--" + started.longValue());
+            });
+            if (counter++ >= Math.min(limit, batchSize)) {
+                semaphore.get().await();
+                semaphore.set(new CountDownLatch(Math.min(limit, batchSize)));
+//                System.out.println(len);
+                counter = 0;
+                System.out.println("create mqtt client: " + len);
+            }
         }
         if (enableEvent && eventDataSuppliers != null) {
             runRate(this::doPushEvent, eventRate);
         }
+        System.out.println("create mqtt client done :" + len);
     }
 
     private Map<String, AtomicInteger> portCounter = new ConcurrentHashMap<>();
@@ -395,7 +416,7 @@ public class MQTTSimulator {
                 }
                 eventLimit--;
             }
-        }catch (Throwable e){
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }

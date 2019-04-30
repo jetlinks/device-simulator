@@ -57,7 +57,7 @@ simulator.onEvent(function (index, session) {
 });
 
 simulator.onConnect(function (session) {
-    _logger.info("[{}]:连接成功",session.auth.clientId)
+   // _logger.info("[{}]:连接成功",session.auth.clientId)
 });
 
 // simulator.onAuth(function(auth,index){
