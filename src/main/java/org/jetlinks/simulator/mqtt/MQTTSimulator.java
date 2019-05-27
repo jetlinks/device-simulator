@@ -128,7 +128,6 @@ public class MQTTSimulator {
     @Setter
     private int batchSize = 100;
 
-
     Map<String, ClientSession> clientMap;
 
     Map<String, MessageHandler> messageHandlerMap = new HashMap<>();
@@ -139,7 +138,14 @@ public class MQTTSimulator {
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2);
 
-    BiConsumer<Integer, MQTTAuth> authBiConsumer;
+    BiConsumer<Integer, MQTTAuth> authBiConsumer = (index, auth) -> {
+        //secureId|timestamp
+        String username = "test|" + System.currentTimeMillis();
+        //md5(secureId|timestamp|secureKey)
+        String password = DigestUtils.md5Hex(username + "|" + "test");
+        auth.setUsername(username);
+        auth.setPassword(password);
+    };
 
     public void onAuth(BiConsumer<Integer, MQTTAuth> consumer) {
         this.authBiConsumer = consumer;
@@ -288,22 +294,28 @@ public class MQTTSimulator {
                 engine.setUseClientMode(true);
             });
         }
+        Runnable initAuth = () -> {
+            mqttClient.getClientConfig().setClientId(auth.getClientId());
+            mqttClient.getClientConfig().setUsername(auth.getUsername());
+            mqttClient.getClientConfig().setPassword(auth.getPassword());
+        };
+
         mqttClient.getClientConfig().setBindAddress(bind);
         mqttClient.setEventLoop(eventLoopGroup);
         mqttClient.getClientConfig().setChannelClass(channelClass);
-        mqttClient.getClientConfig().setClientId(auth.getClientId());
-        mqttClient.getClientConfig().setUsername(auth.getUsername());
-        mqttClient.getClientConfig().setPassword(auth.getPassword());
         mqttClient.getClientConfig().setProtocolVersion(MqttVersion.MQTT_3_1_1);
         mqttClient.getClientConfig().setReconnect(true);
         mqttClient.getClientConfig().setRetryInterval(5);
         mqttClient.getClientConfig().setSslContext(getSSLContext());
+        initAuth.run();
         AtomicLong errorCounter = new AtomicLong();
 
         mqttClient.setCallback(new MqttClientCallback() {
             @Override
             public void connectionLost(Throwable cause) {
-                if (errorCounter.incrementAndGet() >= 5) {
+                authBiConsumer.accept(auth.getIndex(), auth);
+                initAuth.run();
+                if (errorCounter.incrementAndGet() >= 20) {
                     mqttClient.disconnect();
                 } else {
                     System.out.println("客户端" + auth.getClientId() + "连接失败" + (bind == null ? "," : "(本地ip:" + bind + "),") + cause.getClass().getSimpleName() + ":" + cause.getMessage());
@@ -318,7 +330,7 @@ public class MQTTSimulator {
                 }
             }
         });
-        return mqttClient.connect(address, port)
+        return mqttClient.connect(auth.getMqttAddress(), auth.getMqttPort())
                 .addListener(future -> {
                     try {
                         MqttConnectResult result = (MqttConnectResult) future.get(5, TimeUnit.SECONDS);
@@ -352,30 +364,24 @@ public class MQTTSimulator {
         int end = start + limit;
         int len = 0;
         LongAdder started = new LongAdder();
-        AtomicReference<CountDownLatch> semaphore = new AtomicReference<>(new CountDownLatch(Math.min(limit, batchSize)));
+        AtomicReference<CountDownLatch> reference = new AtomicReference<>(new CountDownLatch(Math.min(limit, batchSize)));
         int counter = 0;
         for (int i = start; i < end; i++) {
             MQTTAuth auth = new MQTTAuth();
+            auth.setMqttAddress(address);
+            auth.setMqttPort(port);
+            auth.setIndex(i);
             auth.setClientId(prefix + i);
-            if (authBiConsumer != null) {
-                authBiConsumer.accept(i, auth);
-            } else {
-                //secureId|timestamp
-                String username = "test|" + System.currentTimeMillis();
-                //md5(secureId|timestamp|secureKey)
-                String password = DigestUtils.md5Hex(username + "|" + "test");
-                auth.setUsername(username);
-                auth.setPassword(password);
-            }
+
+            authBiConsumer.accept(i, auth);
+
             createMqttClient(auth, createAddress(len++), (result) -> {
                 started.add(1);
-                semaphore.get().countDown();
-                // System.out.println("--" + started.longValue());
+                reference.get().countDown();
             });
             if (counter++ >= Math.min(limit, batchSize)) {
-                semaphore.get().await();
-                semaphore.set(new CountDownLatch(Math.min(limit, batchSize)));
-//                System.out.println(len);
+                reference.get().await();
+                reference.set(new CountDownLatch(Math.min(limit, batchSize)));
                 counter = 0;
                 System.out.println("create mqtt client: " + len);
             }
@@ -399,7 +405,6 @@ public class MQTTSimulator {
                 .computeIfAbsent(host, h -> new AtomicInteger(bindPortStart))
                 .incrementAndGet());
     }
-
 
     public void doPushEvent() {
         System.out.println("开始上报设备事件");

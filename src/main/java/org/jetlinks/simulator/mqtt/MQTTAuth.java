@@ -10,6 +10,11 @@ import lombok.Setter;
 @Getter
 @Setter
 public class MQTTAuth {
+    private int index;
+    private String mqttAddress;
+
+    private int mqttPort;
+
     private String clientId;
 
     private String username;
