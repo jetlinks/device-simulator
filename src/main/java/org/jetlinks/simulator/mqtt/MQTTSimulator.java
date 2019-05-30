@@ -53,11 +53,10 @@ import java.util.function.Consumer;
  */
 public class MQTTSimulator {
 
-    static final EventLoopGroup eventLoopGroup;
+    transient EventLoopGroup eventLoopGroup;
 
-    static final Class channelClass;
+    transient Class channelClass;
 
-    static final String functionInvokeScriptFile = "./scripts/handler.js";
 
     @Getter
     @Setter
@@ -97,7 +96,7 @@ public class MQTTSimulator {
 
     @Getter
     @Setter
-    String scriptFile = functionInvokeScriptFile;
+    String scriptFile = "./scripts/handler.js";
 
     @Getter
     @Setter
@@ -106,7 +105,6 @@ public class MQTTSimulator {
     @Getter
     @Setter
     private int bindPortStart = 10000;
-
 
     @Getter
     @Setter
@@ -127,6 +125,14 @@ public class MQTTSimulator {
     @Getter
     @Setter
     private int batchSize = 100;
+
+    @Getter
+    @Setter
+    private int timeout = 30;
+
+    @Getter
+    @Setter
+    private int threadSize = Runtime.getRuntime().availableProcessors() * 2;
 
     Map<String, ClientSession> clientMap;
 
@@ -205,22 +211,22 @@ public class MQTTSimulator {
         }
     }
 
-    static {
+    public void init() {
         String os = System.getProperty("os.name");
         if (os.toLowerCase().startsWith("win")) {
-            eventLoopGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
+            eventLoopGroup = new NioEventLoopGroup(threadSize);
             channelClass = NioSocketChannel.class;
 
         } else if (os.toLowerCase().startsWith("linux")) {
-            eventLoopGroup = new EpollEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
+            eventLoopGroup = new EpollEventLoopGroup(threadSize);
             channelClass = EpollSocketChannel.class;
 
         } else {
             eventLoopGroup = new KQueueEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
             channelClass = KQueueSocketChannel.class;
         }
-
     }
+
 
     public void onEvent(BiConsumer<Integer, ClientSession> clientSessionBiConsumer) {
         this.eventDataSuppliers = clientSessionBiConsumer;
@@ -354,6 +360,7 @@ public class MQTTSimulator {
     }
 
     public void start() throws Exception {
+        init();
         String scriptFileContent = new String(Files.readAllBytes(Paths.get(scriptFile)));
         DynamicScriptEngine engine = DynamicScriptEngineFactory.getEngine("js");
         engine.compile("handle", scriptFileContent);
@@ -400,10 +407,15 @@ public class MQTTSimulator {
         }
         //选择网卡
         //----------------当前设备索引/(总数/网卡数量)
-        String host = binds[index / (limit / binds.length)];
-        return new InetSocketAddress(host, portCounter
-                .computeIfAbsent(host, h -> new AtomicInteger(bindPortStart))
-                .incrementAndGet());
+        try {
+            String host = binds[Math.min(binds.length - 1, index / (limit / binds.length))];
+            return new InetSocketAddress(host, portCounter
+                    .computeIfAbsent(host, h -> new AtomicInteger(bindPortStart))
+                    .incrementAndGet());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public void doPushEvent() {
