@@ -276,6 +276,7 @@ public class MQTTSimulator {
 
     public Future<MqttConnectResult> createMqttClient(MQTTAuth auth, InetSocketAddress bind, Consumer<MqttConnectResult> call) throws Exception {
         MqttClientConfig clientConfig = new MqttClientConfig();
+        clientConfig.setProtocolVersion(MqttVersion.MQTT_3_1_1);
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
             System.out.println(topic + "=>" + data);
