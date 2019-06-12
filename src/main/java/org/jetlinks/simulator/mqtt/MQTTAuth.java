@@ -11,6 +11,11 @@ import lombok.Setter;
 @Setter
 public class MQTTAuth {
     private int index;
+    
+    private long requestTime = System.currentTimeMillis();
+
+    private long connectedTime;
+
     private String mqttAddress;
 
     private int mqttPort;
