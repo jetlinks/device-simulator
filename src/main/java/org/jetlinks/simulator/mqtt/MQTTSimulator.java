@@ -92,12 +92,12 @@ public class MQTTSimulator {
     //一次事件上报设备最大数量
     @Getter
     @Setter
-    int eventLimit = 10;
+    int eventLimit = 2000;
 
     //事件上报频率
     @Getter
     @Setter
-    int eventRate = 10000;
+    int eventRate = 1000;
 
     @Getter
     @Setter
@@ -210,7 +210,7 @@ public class MQTTSimulator {
                         if (!future.isSuccess()) {
                             System.out.println("发送消息:/child-device-message=>" + message + "  失败：" + future.cause());
                         } else {
-                            System.out.println("发送消息:/child-device-message=>" + message);
+                          //  System.out.println("发送消息:/child-device-message=>" + message);
                         }
                     });
         }
@@ -283,7 +283,7 @@ public class MQTTSimulator {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
-            System.out.println(topic + "=>" + data);
+           // System.out.println(topic + "=>" + data);
             MessageHandler handler = messageHandlerMap.get(topic);
             if (null != handler) {
                 handler.handle(JSON.parseObject(data), clientMap.get(auth.getClientId()));
@@ -342,6 +342,8 @@ public class MQTTSimulator {
                 }
             }
         });
+        ClientSession session = new ClientSession(mqttClient, auth);
+        clientMap.put(auth.getClientId(), session);
         return mqttClient.connect(auth.getMqttAddress(), auth.getMqttPort())
                 .addListener(future -> {
                     MqttConnectResult result = null;
@@ -349,15 +351,16 @@ public class MQTTSimulator {
                         result = (MqttConnectResult) future.get(5, TimeUnit.SECONDS);
                         if (result.getReturnCode() != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                             mqttClient.disconnect();
+                            clientMap.remove(auth.getClientId());
+
                         } else {
-                            ClientSession session = new ClientSession(mqttClient, auth);
-                            clientMap.put(auth.getClientId(), session);
                             if (null != onConnect) {
                                 onConnect.accept(session);
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
+                        clientMap.remove(auth.getClientId());
                     } finally {
                         call.accept(result);
                     }
