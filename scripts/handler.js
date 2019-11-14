@@ -60,7 +60,7 @@ simulator.onConnect(function (session) {
    // _logger.info("[{}]:连接成功",session.auth.clientId)
 });
 
-// simulator.onAuth(function(auth,index){
+// simulator.onAuth(function(index,auth){
 //     auth.setClientId("simulator-device-"+index);
 //     auth.setUsername("simulator-device-"+index);
 //     auth.setPassword("simulator-device-"+index);

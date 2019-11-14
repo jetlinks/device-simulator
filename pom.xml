@@ -3,7 +3,7 @@
 
     <groupId>org.jetlinks</groupId>
     <artifactId>device-simulator</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-BUILD-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>JetLinks Device Simulator</name>
@@ -124,7 +124,12 @@
         <dependency>
             <groupId>org.jetlinks</groupId>
             <artifactId>netty-mqtt-client</artifactId>
-            <version>${project.version}</version>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-mqtt</artifactId>
+            <version>3.8.3</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -162,6 +167,11 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetlinks</groupId>
+            <artifactId>jetlinks-core</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 
