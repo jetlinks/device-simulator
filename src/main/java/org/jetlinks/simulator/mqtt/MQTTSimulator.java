@@ -73,7 +73,7 @@ public class MQTTSimulator {
 
     @Getter
     @Setter
-    int port = 1883;
+    int port = 1888;
 
     @Getter
     @Setter
@@ -81,13 +81,13 @@ public class MQTTSimulator {
 
     @Getter
     @Setter
-    int limit = 10000;
+    int limit = 3;
 
     //开启事件上报
     @Getter
     @Setter
 
-    boolean enableEvent = false;
+    boolean enableEvent = true;
 
     //一次事件上报设备最大数量
     @Getter
