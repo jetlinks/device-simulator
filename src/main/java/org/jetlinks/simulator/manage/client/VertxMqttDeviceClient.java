@@ -1,4 +1,4 @@
-package org.jetlinks.simulator.mqtt;
+package org.jetlinks.simulator.manage.client;
 
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Vertx;
@@ -11,8 +11,10 @@ import org.jetlinks.core.message.codec.EncodedMessage;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.core.message.codec.SimpleMqttMessage;
 import org.jetlinks.simulator.ClientSession;
-import org.jetlinks.simulator.ClientType;
+import org.jetlinks.simulator.manage.client.MqttClientConfiguration;
+import org.jetlinks.simulator.enums.ClientType;
 import org.jetlinks.simulator.DeviceClient;
+import org.jetlinks.simulator.mqtt.MqttAuthInfo;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -33,30 +35,30 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
 
     private Vertx vertx = Vertx.vertx();
 
-    public static void main(String[] args) {
-        VertxMqttDeviceClient client = new VertxMqttDeviceClient();
-        MqttClientConfiguration clientConfiguration =
-                MqttClientConfiguration.builder()
-                        .host("127.0.0.1")
-                        .port(1883)
-                        .number(1)
-                        .authGenerator((idx) -> {
-                            //secureId|timestamp
-                            String username = "test|" + System.currentTimeMillis();
-                            //md5(secureId|timestamp|secureKey)
-                            String password = DigestUtils.md5Hex(username + "|" + "test");
-                            return new MqttAuthInfo("test"+idx, username,password);
-                        })
-                        .options(new MqttClientOptions())
-                        .build();
-        client.connect(clientConfiguration)
-                .subscribe(session -> {
-                    session.handleMessage()
-                            .subscribe(msg -> {
-                                System.out.println(msg);
-                            });
-                });
-    }
+//    public static void main(String[] args) {
+//        VertxMqttDeviceClient client = new VertxMqttDeviceClient();
+//        MqttClientConfiguration clientConfiguration =
+//                MqttClientConfiguration.builder()
+//                        .host("127.0.0.1")
+//                        .port(1883)
+//                        .number(1)
+//                        .authGenerator((idx) -> {
+//                            //secureId|timestamp
+//                            String username = "test|" + System.currentTimeMillis();
+//                            //md5(secureId|timestamp|secureKey)
+//                            String password = DigestUtils.md5Hex(username + "|" + "test");
+//                            return new MqttAuthInfo("test"+idx, username,password);
+//                        })
+//                        .options(new MqttClientOptions())
+//                        .build();
+//        client.connect(clientConfiguration)
+//                .subscribe(session -> {
+//                    session.handleMessage()
+//                            .subscribe(msg -> {
+//                                System.out.println(msg);
+//                            });
+//                });
+//    }
 
     private void doConnect(FluxSink<ClientSession> sink,
                            int index,
@@ -85,6 +87,7 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
 
                 client.publishHandler(message -> {
                     mqttClientSession.processor.onNext(
+                            
                             SimpleMqttMessage.builder()
                                     .deviceId(options.getClientId())
                                     .messageId(message.messageId())
@@ -117,6 +120,8 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
         });
     }
 
+
+    // TODO: 2019/11/14 每个连接都转换为了会话。那么服务端调用设备属性、方法。都只能被动的回复。并且所有设备回复都一样或者很单一 
     class MqttClientSession implements ClientSession {
         private boolean manualClose;
 
@@ -135,6 +140,7 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
             return client.clientId();
         }
 
+        // TODO: 2019/11/14 只能初始化发送一种类型的消息？
         @Override
         public Mono<Boolean> send(EncodedMessage message) {
             return Mono.create(sink -> {
@@ -159,6 +165,7 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
             });
         }
 
+        // TODO: 2019/11/14 被动回复规则 可根据diviceId配置
         @Override
         public Flux<EncodedMessage> handleMessage() {
             return processor.map(Function.identity());

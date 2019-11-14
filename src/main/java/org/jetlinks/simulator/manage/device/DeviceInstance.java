@@ -13,7 +13,7 @@ public interface DeviceInstance {
 
     DeviceType getType();
 
-    Mono<DeviceOperator> connect();
+    Mono<DeviceOperator> connect(DeviceType deviceType);
 
     Mono<Boolean> disConnect();
 

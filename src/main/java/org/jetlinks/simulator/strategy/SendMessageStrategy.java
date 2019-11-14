@@ -32,4 +32,11 @@ public class SendMessageStrategy implements SimulationStrategy {
     public void stop() {
 
     }
+
+    public static void main(String[] args) {
+        new SendMessageStrategy(null,session-> {
+            session.getDeviceId();
+            return null;
+        });
+    }
 }

@@ -1,4 +1,4 @@
-package org.jetlinks.simulator.mqtt;
+package org.jetlinks.simulator.manage.client;
 
 import io.vertx.mqtt.MqttClientOptions;
 import lombok.Builder;
@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import org.jetlinks.simulator.ClientConfiguration;
+import org.jetlinks.simulator.mqtt.MqttAuthGenerator;
 
 @Getter
 @Setter

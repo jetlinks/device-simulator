@@ -17,9 +17,11 @@ import org.jetlinks.simulator.enums.DeviceType;
 @NoArgsConstructor
 public class DeviceEntity {
 
-    private String id;
+    private String deviceId;
 
-    private String name;
+    private String username;
+
+    private String password;
 
     private DeviceState state;
 
