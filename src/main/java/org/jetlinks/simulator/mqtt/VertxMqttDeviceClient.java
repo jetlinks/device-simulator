@@ -86,7 +86,6 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
                 client.publishHandler(message -> {
                     mqttClientSession.processor.onNext(
                             SimpleMqttMessage.builder()
-                                    .deviceId(options.getClientId())
                                     .messageId(message.messageId())
                                     .payload(message.payload().getByteBuf())
                                     .qosLevel(message.qosLevel().value())
