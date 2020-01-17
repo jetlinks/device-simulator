@@ -187,8 +187,6 @@ public class MQTTSimulator {
                     .addListener(future -> {
                         if (!future.isSuccess()) {
                             System.out.println("发送消息:" + topic + "=>" + json + "  失败：" + future.cause());
-                        } else {
-                            System.out.println("发送消息:" + topic + "=>" + json);
                         }
                     });
         }
@@ -210,7 +208,7 @@ public class MQTTSimulator {
                         if (!future.isSuccess()) {
                             System.out.println("发送消息:/child-device-message=>" + message + "  失败：" + future.cause());
                         } else {
-                          //  System.out.println("发送消息:/child-device-message=>" + message);
+                            //  System.out.println("发送消息:/child-device-message=>" + message);
                         }
                     });
         }
@@ -283,7 +281,6 @@ public class MQTTSimulator {
         MqttClientConfig clientConfig = new MqttClientConfig();
         MqttClient mqttClient = MqttClient.create(clientConfig, (topic, payload) -> {
             String data = payload.toString(StandardCharsets.UTF_8);
-           // System.out.println(topic + "=>" + data);
             MessageHandler handler = messageHandlerMap.get(topic);
             if (null != handler) {
                 handler.handle(JSON.parseObject(data), clientMap.get(auth.getClientId()));
@@ -496,14 +493,17 @@ public class MQTTSimulator {
             List<ClientSession> all = new ArrayList<>(this.clientMap.values());
 
             int eventLimit = Math.min(this.eventLimit, clientSize);
+            int totalLimit = eventLimit;
             Random random = new Random();
-            while (eventLimit >= 0) {
+
+            while (eventLimit > 0) {
                 ClientSession session = all.get(random.nextInt(clientSize));
                 if (session != null) {
-                    eventDataSuppliers.accept(eventLimit, session);
+                    eventDataSuppliers.accept(--eventLimit, session);
                 }
-                eventLimit--;
+
             }
+            System.out.println("成功推送设备事件:" + totalLimit);
         } catch (Throwable e) {
             e.printStackTrace();
         }
