@@ -1,15 +1,25 @@
 package org.jetlinks.simulator;
 
-import java.util.List;
+import org.jetlinks.simulator.mqtt.MqttClientConfiguration;
+import reactor.core.publisher.Flux;
+
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-public class Simulator {
+public interface Simulator {
 
-    List<SimulationStrategy> strategies;
+    void registerClient(MqttClientConfiguration mqtt);
 
-    private Map<String,ClientSession> sessions = new ConcurrentHashMap<>();
+    void registerStrategy(SimulationStrategy strategy);
 
+    void start();
 
+    void stop();
 
+    Map<String, ClientSession> getSessions();
+
+    Flux<ClientSession> onConnected();
+
+    static Simulator newSimulator(){
+        return new DefaultSimulator();
+    }
 }

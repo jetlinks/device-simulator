@@ -6,6 +6,8 @@ import reactor.core.publisher.Mono;
 
 public interface ClientSession {
 
+    ClientType getType();
+
     String getDeviceId();
 
     Mono<Boolean> send(EncodedMessage message);

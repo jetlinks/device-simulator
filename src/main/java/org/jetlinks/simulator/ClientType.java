@@ -1,5 +1,7 @@
 package org.jetlinks.simulator;
 
 public enum ClientType {
-    MQTT
+    MQTT,
+    TCP,
+    CoAP
 }

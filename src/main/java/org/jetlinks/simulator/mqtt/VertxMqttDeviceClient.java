@@ -5,8 +5,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
 import io.vertx.mqtt.MqttClientOptions;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.jetlinks.core.message.codec.EncodedMessage;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.core.message.codec.SimpleMqttMessage;
@@ -23,40 +23,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 @Slf4j
+@AllArgsConstructor
 public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfiguration> {
-
 
     @Override
     public ClientType getType() {
         return ClientType.MQTT;
     }
 
-    private Vertx vertx = Vertx.vertx();
-
-    public static void main(String[] args) {
-        VertxMqttDeviceClient client = new VertxMqttDeviceClient();
-        MqttClientConfiguration clientConfiguration =
-                MqttClientConfiguration.builder()
-                        .host("127.0.0.1")
-                        .port(1883)
-                        .number(1)
-                        .authGenerator((idx) -> {
-                            //secureId|timestamp
-                            String username = "test|" + System.currentTimeMillis();
-                            //md5(secureId|timestamp|secureKey)
-                            String password = DigestUtils.md5Hex(username + "|" + "test");
-                            return new MqttAuthInfo("test"+idx, username,password);
-                        })
-                        .options(new MqttClientOptions())
-                        .build();
-        client.connect(clientConfiguration)
-                .subscribe(session -> {
-                    session.handleMessage()
-                            .subscribe(msg -> {
-                                System.out.println(msg);
-                            });
-                });
-    }
+    private Vertx vertx;
 
     private void doConnect(FluxSink<ClientSession> sink,
                            int index,
@@ -116,7 +91,8 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
         });
     }
 
-    class MqttClientSession implements ClientSession {
+
+    static class MqttClientSession implements ClientSession {
         private boolean manualClose;
 
         private AtomicLong retryTimes = new AtomicLong();
@@ -124,6 +100,11 @@ public class VertxMqttDeviceClient implements DeviceClient<MqttClientConfigurati
         private MqttClient client;
 
         private EmitterProcessor<EncodedMessage> processor;
+
+        @Override
+        public ClientType getType() {
+            return ClientType.MQTT;
+        }
 
         public MqttClientSession() {
             this.processor = EmitterProcessor.create(false);

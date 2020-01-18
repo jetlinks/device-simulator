@@ -7,4 +7,6 @@ public interface SimulationStrategy {
     void execute();
 
     void stop();
+
+
 }
