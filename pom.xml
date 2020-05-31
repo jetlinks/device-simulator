@@ -4,7 +4,12 @@
     <groupId>org.jetlinks</groupId>
     <artifactId>device-simulator</artifactId>
     <version>1.0.0-BUILD-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <modules>
+        <module>simulator-core</module>
+        <module>simulator-console</module>
+        <module>simulator-web</module>
+    </modules>
+    <packaging>pom</packaging>
 
     <name>JetLinks Device Simulator</name>
     <url>https://github.com/jetlinks/device-simulator</url>
@@ -32,29 +37,7 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <archive>
-                        <manifest>
-                            <mainClass>org.jetlinks.simulator.mqtt.MQTTSimulator</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>assembly</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
