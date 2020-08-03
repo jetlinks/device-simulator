@@ -3,7 +3,7 @@
 
     <groupId>org.jetlinks</groupId>
     <artifactId>device-simulator</artifactId>
-    <version>1.0.0-BUILD-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>JetLinks Device Simulator</name>
