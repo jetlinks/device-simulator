@@ -1,39 +1,96 @@
 package org.jetlinks.simulator.core;
 
-import org.jetlinks.simulator.core.aciton.Action;
-import org.jetlinks.simulator.core.network.Network;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import lombok.Getter;
+import lombok.Setter;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public interface Simulator extends Lifecycle{
+/**
+ * 网络模拟器
+ *
+ * @author zhouhao
+ * @since 1.0.4
+ */
+public interface Simulator {
 
-    long getConnectionSize();
+    Mono<SimulatorListener> getListener(String id);
 
-    Flux<Network> getConnections();
+    void registerListener(SimulatorListener listener);
 
-    Mono<Network> getConnection(String id);
+    Mono<State> state();
 
-    /**
-     * <pre>
-     *      type = 'mqtt' and clientId like 'test%' limit 0,10
-     *  </pre>
-     *
-     * @param ql 查询表达式
-     * @return 查询结果
-     */
-    Flux<Network> findConnection(String ql);
+    Mono<Void> start();
 
-    Simulator addConnection(Network network);
+    Mono<Void> shutdown();
 
-    List<Action> getActions();
+    Mono<Session> getSession(String id);
 
-    Optional<Action> getAction(String id);
+    int totalSession();
 
-    Simulator addAction(Action action);
+    Flux<Session> getSessions();
 
-    Simulator removeAction(String action);
+    default Flux<Session> getSessions(int offset, int total) {
+        return getSessions()
+                .skip(offset)
+                .take(total);
+    }
+
+    void log(String text, Object... args);
+
+    Flux<String> handleLog();
+
+    void doOnComplete(Runnable runnable);
+
+    default Disposable delay(Runnable task, long delay) {
+        return Schedulers.parallel().schedule(task, delay, TimeUnit.MILLISECONDS);
+    }
+
+    default Disposable timer(Runnable task, long period) {
+        return Schedulers.parallel().schedulePeriodically(task, period, period, TimeUnit.MILLISECONDS);
+    }
+
+    @Getter
+    @Setter
+    class State {
+        //已完成
+        private boolean complete;
+        //总数
+        private long total;
+        //当前数量
+        private long current;
+        //失败数量
+        private long failed;
+        //连接时间统计
+        private Agg aggTime;
+
+        //时间分布
+        private Map<Integer, Long> distTime;
+
+        //失败类型计数
+        private Map<String, Long> failedTypeCounts;
+
+        @Getter
+        @Setter
+        public static class Agg {
+            int total;
+            int max;
+            int min;
+            int avg;
+        }
+
+        @Override
+        public String toString() {
+            return JSON.toJSONString(this, SerializerFeature.PrettyFormat);
+        }
+    }
 
 }
