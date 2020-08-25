@@ -14,6 +14,7 @@ public class DefaultSimulatorListenerBuilder implements SimulatorListenerBuilder
 
     public DefaultSimulatorListenerBuilder(){
         addProvider(new JSR223ListenerProvider());
+        addProvider(new AutoReconnectListenerProvider());
     }
 
     @Override
@@ -23,7 +24,7 @@ public class DefaultSimulatorListenerBuilder implements SimulatorListenerBuilder
                 .orElseThrow(() -> new UnsupportedOperationException("unsupported listener type:" + listener.getType()));
     }
 
-    protected void addProvider(SimulatorListenerProvider provider) {
+    public void addProvider(SimulatorListenerProvider provider) {
         providers.put(provider.getType(), provider);
     }
 

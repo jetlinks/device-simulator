@@ -6,7 +6,7 @@
     <version>1.0.0-BUILD-SNAPSHOT</version>
     <modules>
         <module>simulator-core</module>
-        <module>simulator-web</module>
+        <module>simulator-console</module>
     </modules>
     <packaging>pom</packaging>
 

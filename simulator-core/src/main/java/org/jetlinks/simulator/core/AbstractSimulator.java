@@ -46,7 +46,9 @@ public abstract class AbstractSimulator implements Simulator {
     private final AtomicLong success = new AtomicLong();
     private final AtomicLong failed = new AtomicLong();
     private final AtomicLong maxTime = new AtomicLong();
-    private final AtomicLong minTime = new AtomicLong(99999);
+    private final static int initMinTime = Integer.MAX_VALUE;
+
+    private final AtomicLong minTime = new AtomicLong(initMinTime);
     private final AtomicLong avgTime = new AtomicLong();
     private final AtomicLong totalTime = new AtomicLong();
     private final AtomicBoolean started = new AtomicBoolean();
@@ -61,7 +63,7 @@ public abstract class AbstractSimulator implements Simulator {
     private final Disposable.Composite disposable = Disposables.composite();
 
     //时间分布
-    int[] distArray = {5000, 1000, 500, 100, 20};
+    int[] distArray = {5000, 1000, 500, 100, 20, 0};
 
 
     public AbstractSimulator(SimulatorConfig config, SimulatorListenerBuilder builder, AddressPool pool) {
@@ -127,6 +129,7 @@ public abstract class AbstractSimulator implements Simulator {
         for (int i : distArray) {
             if (time > i) {
                 dist.computeIfAbsent(i, ignore -> new AtomicLong(i)).incrementAndGet();
+                break;
             }
         }
     }
@@ -186,6 +189,9 @@ public abstract class AbstractSimulator implements Simulator {
             agg.avg = avgTime.intValue();
             agg.max = maxTime.intValue();
             agg.min = minTime.intValue();
+            if (agg.min == initMinTime) {
+                agg.min = 0;
+            }
             agg.total = totalTime.intValue();
             state.setAggTime(agg);
             return state;

@@ -29,9 +29,17 @@ public class MqttSession extends AbstractSession {
 
     private Topic<FluxSink<MqttMessage>> subscriber = Topic.createRoot();
 
+    public MqttSession(String id, int index) {
+        super(id, index);
+    }
+
     @Override
     public String toString() {
-        return "MQTT:" + client.clientId();
+        return client == null ? "mqtt connection" : "mqtt(" + client.clientId() + ")";
+    }
+
+    public Flux<MqttMessage> subscribe(String topic) {
+        return subscribe(topic, 0);
     }
 
     public Flux<MqttMessage> subscribe(String topic, int qos) {
@@ -107,9 +115,6 @@ public class MqttSession extends AbstractSession {
         ));
     }
 
-    public MqttSession(String id, int index) {
-        super(id, index);
-    }
 
     @Override
     public void close() {

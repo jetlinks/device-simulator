@@ -44,6 +44,9 @@ public abstract class AbstractSession implements Session {
     @Override
     public final Disposable onConnected(Runnable callback) {
         connectedListener.add(callback);
+        if (connected) {
+            callback.run();
+        }
         return () -> connectedListener.remove(callback);
     }
 

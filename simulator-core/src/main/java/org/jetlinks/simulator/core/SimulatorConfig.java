@@ -21,7 +21,7 @@ public class SimulatorConfig {
     private Network network;
 
     //运行配置
-    private Runner runner;
+    private Runner runner = new Runner();
 
     //监听器
     private List<Listener> listeners;
@@ -42,10 +42,10 @@ public class SimulatorConfig {
     @Getter
     @Setter
     public static class Network {
-        private Map<String, Object> configuration =new HashMap<>();
+        private Map<String, Object> configuration = new HashMap<>();
 
-        public Network with(String key,Object value){
-            configuration.put(key,value);
+        public Network with(String key, Object value) {
+            configuration.put(key, value);
 
             return this;
         }
@@ -53,23 +53,23 @@ public class SimulatorConfig {
 
     @Getter
     @Setter
-    public static class Listener  {
+    public static class Listener {
         private String id;
         private String type;
-        private Map<String, Object> configuration =new HashMap<>();
+        private Map<String, Object> configuration = new HashMap<>();
 
-        public Listener id(String id){
-            this.id=id;
+        public Listener id(String id) {
+            this.id = id;
             return this;
         }
 
-        public Listener type(String value){
-            this.type=value;
+        public Listener type(String value) {
+            this.type = value;
             return this;
         }
 
-        public Listener with(String key,Object value){
-            configuration.put(key,value);
+        public Listener with(String key, Object value) {
+            configuration.put(key, value);
 
             return this;
         }
