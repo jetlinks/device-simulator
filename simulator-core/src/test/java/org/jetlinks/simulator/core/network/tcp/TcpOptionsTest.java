@@ -11,23 +11,37 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TcpOptionsTest {
 
+    @Test
+    void testLengthField() {
+        TcpOptions options = new TcpOptions();
+        options.setLengthField(new Integer[]{0, 4});
+        List<Buffer> buffers = new ArrayList<>();
+
+        Consumer<Buffer> input = options.createParser(buffers::add);
+        input.accept(Buffer.buffer().appendInt(4));
+        assertEquals(0,buffers.size());
+
+        input.accept(Buffer.buffer().appendBytes(new byte[4]));
+
+        assertEquals(1,buffers.size());
+    }
 
     @Test
-    void testParseFixed(){
-        TcpOptions options=new TcpOptions();
+    void testParseFixed() {
+        TcpOptions options = new TcpOptions();
         options.setFixedLength(4);
 
         List<Buffer> buffers = new ArrayList<>();
 
-       Consumer<Buffer> input = options.createParser(buffers::add);
+        Consumer<Buffer> input = options.createParser(buffers::add);
 
-        input.accept(Buffer.buffer(new byte[]{0x01,0x00}));
-        assertEquals(0,buffers.size());
+        input.accept(Buffer.buffer(new byte[]{0x01, 0x00}));
+        assertEquals(0, buffers.size());
 
-        input.accept(Buffer.buffer(new byte[]{0x01,0x00,0x02,0x03}));
-        assertEquals(1,buffers.size());
+        input.accept(Buffer.buffer(new byte[]{0x01, 0x00, 0x02, 0x03}));
+        assertEquals(1, buffers.size());
 
-        input.accept(Buffer.buffer(new byte[]{0x01,0x00}));
-        assertEquals(2,buffers.size());
+        input.accept(Buffer.buffer(new byte[]{0x01, 0x00}));
+        assertEquals(2, buffers.size());
     }
 }

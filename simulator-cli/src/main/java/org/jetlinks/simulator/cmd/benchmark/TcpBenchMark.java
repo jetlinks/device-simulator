@@ -11,6 +11,7 @@ import picocli.CommandLine;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collections;
 
 @CommandLine.Command(name = "tcp",

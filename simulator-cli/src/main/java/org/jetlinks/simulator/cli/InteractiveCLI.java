@@ -85,6 +85,7 @@ public class InteractiveCLI {
 
     @SneakyThrows
     public void showHelp() {
+        systemRegistry.cleanUp();
         systemRegistry.execute("help");
     }
 

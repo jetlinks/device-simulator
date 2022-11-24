@@ -39,8 +39,9 @@ public class TcpOptions extends NetClientOptions {
                     .newFixed(fixedLength)
                     .handler(handler::accept);
         } else if (delimited != null) {
-            parser = RecordParser.newDelimited(delimited)
-                                 .handler(handler::accept);
+            parser = RecordParser
+                    .newDelimited(delimited)
+                    .handler(handler::accept);
         }
         if (lengthField != null && lengthField.length > 0) {
             int len = lengthField.length >= 2 ? lengthField[1] : lengthField[0];
@@ -66,6 +67,7 @@ public class TcpOptions extends NetClientOptions {
                     int next = fieldReader.apply(buff);
                     temp.fixedSizeMode(next);
                 } else {
+                    temp.fixedSizeMode(len+offset);
                     Buffer buffer = current.getAndSet(null);
                     handler.accept(buffer.appendBuffer(buff));
                 }
@@ -79,6 +81,9 @@ public class TcpOptions extends NetClientOptions {
         this.id = options.getId();
         this.host = options.getHost();
         this.port = options.getPort();
+        this.lengthField = options.getLengthField();
+        this.fixedLength = options.getFixedLength();
+        this.delimited = options.getDelimited();
     }
 
     @Override
@@ -91,7 +96,7 @@ public class TcpOptions extends NetClientOptions {
     }
 
     private TcpOptions apply(Map<String, Object> args) {
-        if(id==null){
+        if (id == null) {
             return this;
         }
         for (Map.Entry<String, Object> entry : args.entrySet()) {
