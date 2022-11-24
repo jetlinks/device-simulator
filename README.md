@@ -5,6 +5,8 @@
 ## 交互式CLI
 
 ```bash
- ./run-cli.sh
+$ git clone https://github.com/jetlinks/device-simulator.git
+$ cd device-simulator
+$ ./run-cli.sh
 ```
 

@@ -7,7 +7,6 @@ import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
-import io.vertx.core.parsetools.RecordParser;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.AbstractConnection;
