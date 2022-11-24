@@ -1,0 +1,33 @@
+{
+  "id": "test",
+  "type": "mqtt_client",
+  "network": {
+    "configuration": {
+      "host": "127.0.0.1",
+      "port": "1883",
+      "clientId": "test${index}",
+      "username": "admin",
+      "password": "password"
+    }
+  },
+  "runner": {
+    "total": "${#env['runner.total']?:'10'}",
+    "batch": "${#env['runner.batch']?:'200'}",
+    "startWith": "${#env['runner.startWith']?:'2'}"
+  },
+  "listeners": [
+    {
+      "type": "jsr223",
+      "configuration": {
+        "lang": "js",
+        "location": "./mqtt.listener.js"
+      }
+    },
+    {
+      "type": "auto-reconnect",
+      "configuration": {
+        "delays": "1000,5000,10000"
+      }
+    }
+  ]
+}
