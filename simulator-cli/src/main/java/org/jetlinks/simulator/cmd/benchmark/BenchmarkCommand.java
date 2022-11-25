@@ -1,22 +1,24 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
-import com.github.freva.asciitable.AsciiTable;
-import com.github.freva.asciitable.Column;
-import com.github.freva.asciitable.HorizontalAlign;
-import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.cmd.CommonCommand;
+import org.jetlinks.simulator.cmd.EditableAttachCommand;
+import org.jetlinks.simulator.core.ConnectionManager;
+import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.report.Reporter;
+import org.jline.utils.AttributedString;
+import org.jline.utils.AttributedStringBuilder;
 import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @CommandLine.Command(name = "benchmark",
         description = "压力测试",
@@ -53,57 +55,102 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
     @CommandLine.Command(name = "stats",
             description = "Show Benchmark stats",
             headerHeading = "%n")
-    static class StatsCommand extends AbstractCommand implements Runnable {
-        static Column[] columns = new Column[]{
-                new Column().header("Name").headerAlign(HorizontalAlign.CENTER).dataAlign(HorizontalAlign.LEFT),
-                new Column().header("Connections").headerAlign(HorizontalAlign.CENTER),
-                new Column().header("TimeDist").headerAlign(HorizontalAlign.CENTER)
-        };
+    static class StatsCommand extends EditableAttachCommand implements Runnable {
 
         @CommandLine.Option(names = {"--name"}, description = "名称")
         private String name;
 
+        private Collection<Benchmark> benchmarks;
 
         @Override
-        public void run() {
-            Collection<Benchmark> benchmarks;
+        protected void init() {
+            super.init();
             if (StringUtils.hasText(name)) {
                 Benchmark benchmark = allBenchMark.get(name);
                 if (benchmark == null) {
-                    printf("Benchmark [%s] not found", name);
+                    throw new IllegalArgumentException("Benchmark [%s] not found");
                 }
                 benchmarks = Collections.singleton(benchmark);
             } else {
                 benchmarks = allBenchMark.values();
             }
-
-            Object[][] data = benchmarks
-                    .stream()
-                    .map(benchmark -> {
-                        Reporter.Aggregate aggregate = benchmark
-                                .getReporter()
-                                .aggregate(Benchmark.REPORT_CONNECTING);
-                        return new Object[]{
-                                benchmark.getName(),
-                                aggregate.getExecuting() == 0 ?
-                                        aggregate.getTotal()
-                                        : aggregate.getTotal() + "(" + aggregate.getExecuting() + ")",
-                                aggregate.getDistribution()
-                                         .entrySet().stream()
-                                         .map(entry -> ">=" + entry.getKey().toMillis() + "ms:" + entry.getValue())
-                                        .collect(Collectors.joining(",", "[", "]"))
-                        };
-                    })
-                    .toArray(Object[][]::new);
-
-            printf("%s%n", AsciiTable
-                    .builder()
-                    .data(columns, data)
-                    .toString());
         }
+
+        @Override
+        protected void createDisplay(List<AttributedString> lines) {
+            AttributedStringBuilder builder = new AttributedStringBuilder();
+
+            for (Benchmark benchmark : benchmarks) {
+                Reporter.Aggregate connection = benchmark.getReporter().aggregate(Benchmark.REPORT_CONNECTING);
+
+                builder.append("Benchmark(")
+                       .append(benchmark.getName(), green)
+                       .append(") size: ")
+                       .append(String.valueOf(benchmark.getOptions().getSize()), green)
+                       .append(" completed: ")
+                       .append(String.valueOf(Math.abs(connection.getTotal() - connection.getExecuting())), green)
+                       .append(" connecting: ")
+                       .append(String.valueOf(connection.getExecuting()), green)
+                       .append(" Time distribution: ");
+
+                int i = 0;
+                for (Map.Entry<Duration, Long> entry : connection.getDistribution().entrySet()) {
+                    if (i++ > 0) {
+                        builder.append(",");
+                    }
+                    builder
+                            .append(String.valueOf(entry.getValue()), green)
+                            .append(">=")
+                            .append(String.valueOf(entry.getKey().toMillis()))
+                            .append("ms");
+                }
+
+                lines.add(builder.toAttributedString());
+
+                builder.setLength(0);
+
+                ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
+                if (summary != null) {
+                    builder.append("               ")
+                           .append(" alive: ")
+                           .append(String.valueOf(summary.getConnected()), green)
+                           .append(" sent: ")
+                           .append(String.valueOf(summary.getSent()), green)
+                           .append("(")
+                           .append(formatBytes(summary.getSentBytes()), blue)
+                           .append(")")
+                           .append(" received: ")
+                           .append(String.valueOf(summary.getReceived()), green)
+                           .append("(")
+                           .append(formatBytes(summary.getReceivedBytes()), blue)
+                           .append(")");
+                }
+
+                Throwable lastError = benchmark.getLastError();
+                if (null != lastError) {
+                    builder.append(" Last Error: ")
+                           .append(ExceptionUtils.getErrorMessage(lastError), red);
+
+                }
+
+                lines.add(builder.toAttributedString());
+
+                builder.setLength(0);
+
+                for (String log : benchmark.getLogs()) {
+                    for (String l : log.split("\n")) {
+                        builder.append(l, blue);
+                        lines.add(builder.toAttributedString());
+                        builder.setLength(0);
+                    }
+                }
+            }
+
+        }
+
     }
 
-    static class Options extends BenchmarkOptions {
+    public static class Options extends BenchmarkOptions {
         @Override
         @CommandLine.Option(names = {"--name"}, description = "名称", order = 90)
         public void setName(String name) {

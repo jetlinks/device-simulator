@@ -7,6 +7,7 @@ import picocli.CommandLine;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.StringJoiner;
 
 @CommandLine.Command(name = "connect",
         showDefaultValues = true,
@@ -24,10 +25,18 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
             MqttClient client = MqttClient
                     .connect(InetSocketAddress.createUnresolved(command.getHost(), command.getPort()), command)
                     .block(Duration.ofSeconds(10));
+            if (client != null) {
+                main().connectionManager().addConnection(client);
+                printf(" success!%n");
+                if (command.topics != null) {
+                    main()
+                            .getCommandLine()
+                            .execute("mqtt", "attach", "--clientId=" + client.getId(), "--topics=" + String.join(",", command.topics));
+                }
 
-            main().connectionManager().addConnection(client);
-
-            printf(" success!%n");
+            } else {
+                printf(" error:%n");
+            }
         } catch (Throwable err) {
             printfError(" error: %s %n", ExceptionUtils.getErrorMessage(err));
         }
@@ -66,6 +75,8 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
             super.setPassword(password);
         }
 
+        @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
+        private String[] topics;
 
     }
 }

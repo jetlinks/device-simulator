@@ -24,11 +24,11 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
     public final void run() {
         String name = options.getName() == null ? getDefaultName() : options.getName();
 
-        printf("start benchmark %s, index %d,size %d.args:%s %n ",
-               name,
-               options.getIndex(),
-               options.getSize(),
-               options.getScriptArgs()==null?"":String.valueOf(options.getScriptArgs()));
+//        printf("start benchmark %s, index %d,size %d.args:%s %n ",
+//               name,
+//               options.getIndex(),
+//               options.getSize(),
+//               options.getScriptArgs()==null?"":String.valueOf(options.getScriptArgs()));
         DefaultConnectionManager connectionManager = new DefaultConnectionManager();
 
         Benchmark benchmark = Benchmark.create(

@@ -32,14 +32,16 @@ function beforeConnect(index, options) {
 
 //全部连接完成后执行
 function onComplete() {
-    if(!$enableReport){
+    if (!$enableReport) {
         return
     }
     //定时执行1s
     $benchmark
         .interval(function () {
             //随机获取1000个连接然后上报属性数据
-            return $benchmark.randomConnectionAsync($reportLimit, reportProperties);
+            $benchmark.print("批量上报属性..");
+            return $benchmark
+                .randomConnectionAsync($reportLimit, reportProperties);
         }, $reportInterval)
 
 }
@@ -48,7 +50,7 @@ function onComplete() {
 function reportProperties(client) {
     //创建随机数据
     var data = {};
-
+   // $benchmark.print("上报[" + client.getId() + "]属性");
     for (let i = 0; i < 10; i++) {
         data["temp" + i] = randomFloat(10, 30);
     }
@@ -57,7 +59,7 @@ function reportProperties(client) {
     }
 
     //推送mqtt
-    client.publish(createTopic(client, "/properties/read/report"), 0, $benchmark.toJson(msg));
+    return client.publishAsync(createTopic(client, "/properties/read/report"), 0, $benchmark.toJson(msg));
 
 }
 
@@ -84,6 +86,8 @@ function handleReadProperty(client, msg) {
     var messageId = msg.getString("messageId");
     var properties = msg.getJsonArray("properties");
 
+    $benchmark.print("读取[" + client.getId() + "]属性:" + msg);
+
     //创建随机数据
     var data = {};
     properties.forEach(function (property) {
@@ -97,7 +101,12 @@ function handleReadProperty(client, msg) {
         "properties": data
     }
     //推送mqtt
-    client.publish(createTopic(client, "/properties/read/reply"), 0, $benchmark.toJson(reply));
+    doPublish(client, "/properties/read/reply", reply)
+}
+
+function doPublish(client, topic, payload) {
+    //推送mqtt
+    client.publish(createTopic(client, topic), 0, $benchmark.toJson(payload));
 }
 
 //重点! 绑定函数到benchmark

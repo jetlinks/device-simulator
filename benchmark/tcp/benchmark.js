@@ -19,6 +19,8 @@ var secureKey = "test";
 //平台下发读取属性指令时
 protocol.doOnReadProperty(function (properties) {
 
+    $benchmark.print("读取属性:"+properties);
+
     let data = new java.util.HashMap();
 
     properties.forEach(function (property) {

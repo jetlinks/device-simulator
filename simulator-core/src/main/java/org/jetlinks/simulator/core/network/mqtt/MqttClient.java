@@ -25,6 +25,8 @@ import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -32,6 +34,8 @@ public class MqttClient extends AbstractConnection {
     io.vertx.mqtt.MqttClient client;
 
     private List<Consumer<MqttPublishMessage>> handlers;
+
+    private final Map<String, Object> subscribers = new ConcurrentHashMap<>();
 
     private MqttClient(io.vertx.mqtt.MqttClient client) {
         this.client = client;
@@ -127,15 +131,21 @@ public class MqttClient extends AbstractConnection {
     }
 
     public Disposable subscribe(String topic, int qoS, Consumer<MqttPublishMessage> handler) {
-        client.subscribe(topic, qoS);
+        if (subscribers.put(topic, handler) == null) {
+            client.subscribe(topic, qoS);
+        }
+
         Disposable disposable = handle(msg -> {
             if (TopicUtils.match(topic, msg.topicName())) {
                 handler.accept(msg);
             }
         });
         return () -> {
-            client.unsubscribe(topic);
             disposable.dispose();
+            if (subscribers.remove(topic, handler)) {
+                client.unsubscribe(topic);
+            }
+
         };
     }
 

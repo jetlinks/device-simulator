@@ -9,7 +9,7 @@ var doOnReadProperty;
 var ReadProperty = {
     handle: function (buffer, client, msgId) {
         var properties = Types.ArrayType.decode(buffer);
-        console.log("read properties:{}", properties);
+
         var response = client.newBuffer();
 
         //0x05 回复读取属性指令
@@ -55,7 +55,6 @@ messageTypes[0x04] = ReadProperty;
 messageTypes[0x02] = {
 
     handle: function (buffer, client) {
-
         return buffer.readUnsignedByte();
     },
     toString: function () {
@@ -65,7 +64,7 @@ messageTypes[0x02] = {
 
 function sendTo(client, buffer) {
     var len = buffer.writerIndex();
-    // print(client.getId() + " send 0x" + client.toHex(buffer))
+   // $benchmark.print(client.getId() + " 发送数据 0x" + client.toHex(buffer))
     client.send(
         client.newBuffer().writeInt(len).writeBytes(buffer)
     )
@@ -92,7 +91,7 @@ return {
         sendTo(client, response);
     },
     handleFromServer: function (client, byteBuf) {
-        //  print("handle downstream " + client.toHex(byteBuf));
+        // $benchmark.print("handle [" + client.getId() + "] downstream: " + client.toHex(byteBuf));
 
         //长度头 忽略掉
         var len = byteBuf.readInt();
@@ -110,11 +109,10 @@ return {
 
         if (type && type.handle) {
             type.handle(byteBuf, client, msgId);
-            console.log("handle message type[" + typeByte + "(" + type + ")] msgId [" + msgId + "] ")
+            $benchmark.print("收到来自服务的设备[" + client.getId() + "]指令[" + typeByte + "(" + type + ")]:序号 [" + msgId + "] ")
         } else {
-            console.log("unhandled message type[" + typeByte + "] msgId [" + msgId + "] ")
+            $benchmark.print("不支持的设备 [" + client.getId() + "] 指令[" + typeByte + "]:序号 [" + msgId + "] ")
         }
-
 
     },
     doOnReadProperty: function (callback) {

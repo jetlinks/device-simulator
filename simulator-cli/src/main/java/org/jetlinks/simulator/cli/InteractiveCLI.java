@@ -67,7 +67,7 @@ public class InteractiveCLI {
                 .completer(systemRegistry.completer())
                 .parser(parser)
                 .variable(LineReader.HISTORY_FILE, "simulator-cli-history")
-                .variable(LineReader.HISTORY_IGNORE,"help,cls,clear,exit")
+                .variable(LineReader.HISTORY_IGNORE,"help|cls|clear|exit")
                 .variable(LineReader.LIST_MAX, 50)   // max tab completion candidates
                 .build();
         // set up the completion

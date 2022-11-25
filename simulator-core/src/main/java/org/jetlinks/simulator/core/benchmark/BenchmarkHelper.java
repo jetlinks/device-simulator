@@ -13,7 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public interface BenchmarkHelper {
 
-      Object require(String location);
+    Object require(String location);
 
     default long now() {
         return System.currentTimeMillis();

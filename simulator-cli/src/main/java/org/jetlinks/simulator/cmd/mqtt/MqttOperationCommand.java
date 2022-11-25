@@ -7,7 +7,8 @@ import picocli.CommandLine;
         description = "mqtt相关操作",
 subcommands = {
         MqttPublishCommand.class,
-        ConnectMqttCommand.class
+        ConnectMqttCommand.class,
+        MqttAttachCommand.class
 })
 public class MqttOperationCommand extends CommonCommand implements Runnable {
 

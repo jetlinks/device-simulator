@@ -7,7 +7,8 @@ import picocli.CommandLine;
         description = "tcp相关操作",
         subcommands = {
                 TcpSendCommand.class,
-                ConnectTcpCommand.class
+                ConnectTcpCommand.class,
+                TcpAttachCommand.class
         })
 public class TcpOperationCommand extends CommonCommand implements Runnable {
 

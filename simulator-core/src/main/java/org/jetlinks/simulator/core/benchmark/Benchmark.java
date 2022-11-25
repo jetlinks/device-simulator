@@ -11,23 +11,21 @@ import org.jetlinks.simulator.core.report.Reporter;
 import org.jetlinks.simulator.core.script.Script;
 import org.jetlinks.simulator.core.script.ScriptFactory;
 import org.jetlinks.simulator.core.script.Scripts;
+import org.joda.time.DateTime;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -43,6 +41,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
     @Getter
     private final String name;
 
+    @Getter
     private final BenchmarkOptions options;
 
     private final Reporter reporter;
@@ -57,6 +56,14 @@ public class Benchmark implements Disposable, BenchmarkHelper {
     private final List<Runnable> completeHandler = new CopyOnWriteArrayList<>();
 
     private final Disposable.Composite disposable = Disposables.composite();
+
+    private final Set<String> errors = ConcurrentHashMap.newKeySet();
+
+    private final Deque<String> logs = new ConcurrentLinkedDeque<>();
+
+    @Getter
+    private Throwable lastError;
+
 
     public Benchmark(String name,
                      BenchmarkOptions options,
@@ -79,6 +86,10 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     public Reporter getReporter() {
         return reporter;
+    }
+
+    public Deque<String> getLogs() {
+        return logs;
     }
 
     public void start() {
@@ -117,7 +128,6 @@ public class Benchmark implements Disposable, BenchmarkHelper {
             }
         }
     }
-
 
     void handleBeforeConnect(int index, Object ctx) {
         for (BiConsumer<Integer, Object> consumer : beforeConnectHandler) {
@@ -194,7 +204,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                         .fromCallable(callable)
                         .flatMap(this::castMono)
                         .onErrorResume(err -> {
-                            log.warn("interval execute error", err);
+                            error("delay execute", err);
                             return Mono.empty();
                         }))
                 .subscribe();
@@ -209,7 +219,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                         .fromCallable(callable)
                         .flatMap(this::castMono)
                         .onErrorResume(err -> {
-                            log.warn("interval execute error", err);
+                            error("interval execute", err);
                             return Mono.empty();
                         }))
                 .subscribe();
@@ -221,6 +231,15 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         };
     }
 
+    private void error(String operation, Throwable e) {
+        lastError = e;
+        if (errors.size() > 100) {
+            errors.clear();
+        }
+        errors.add(operation + ":" + ExceptionUtils.getErrorMessage(e));
+        // log.warn(operation, e);
+    }
+
     private Mono<? extends Connection> connect(int index) {
         Reporter.Point point = reporter.newPoint(REPORT_CONNECTING);
         point.start();
@@ -230,6 +249,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                 .doOnNext(ignore -> point.success())
                 .onErrorResume(err -> {
                     point.error(getErrorMessage(err));
+                    error("connect", err);
                     return Mono.empty();
                 });
     }
@@ -260,6 +280,13 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         @Override
         public void beforeConnect(Object context) {
             handleBeforeConnect(index, context);
+        }
+    }
+
+    public void print(String log, Object... args) {
+        logs.add(new DateTime().toString("HH:mm:ss.SSS") + " " + String.format(log, args));
+        if (logs.size() > 20) {
+            logs.removeFirst();
         }
     }
 
