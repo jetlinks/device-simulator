@@ -1,5 +1,6 @@
 package org.jetlinks.simulator.cmd;
 
+import org.jline.builtins.Nano;
 import org.jline.keymap.KeyMap;
 import org.jline.terminal.MouseEvent;
 import org.jline.terminal.Terminal;
@@ -11,6 +12,7 @@ import picocli.CommandLine;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
 
 @CommandLine.Command(name = "edit")
@@ -157,8 +159,9 @@ public class EditableAttachCommand extends AttachCommand {
 
         keys.bind(EditorOperation.EXECUTE, "\r", key(terminal, InfoCmp.Capability.key_enter));
 
-        keys.bind(EditorOperation.RIGHT, key(terminal, InfoCmp.Capability.key_right));
-        keys.bind(EditorOperation.LEFT, key(terminal, InfoCmp.Capability.key_left));
+        keys.bind(EditorOperation.RIGHT, key(terminal, InfoCmp.Capability.key_right),ctrl('b'));
+        keys.bind(EditorOperation.LEFT, key(terminal, InfoCmp.Capability.key_left),ctrl('f'));
+
         keys.bind(EditorOperation.UP, key(terminal, InfoCmp.Capability.key_up));
         keys.bind(EditorOperation.DOWN, key(terminal, InfoCmp.Capability.key_down));
 
@@ -166,7 +169,7 @@ public class EditableAttachCommand extends AttachCommand {
         keys.bind(EditorOperation.LAST, KeyMap.ctrl('e'));
 
 
-        keys.bind(EditorOperation.BACKSPACE, KeyMap.del());
+        keys.bind(EditorOperation.BACKSPACE,ctrl('h'), KeyMap.del(), key(terminal, InfoCmp.Capability.delete_character));
 
         keys.bind(EditorOperation.MOUSE_EVENT, key(terminal, InfoCmp.Capability.key_mouse));
 
