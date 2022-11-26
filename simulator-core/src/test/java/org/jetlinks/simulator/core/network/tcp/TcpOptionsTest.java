@@ -25,9 +25,14 @@ class TcpOptionsTest {
 
         assertEquals(1, buffers.size());
 
-        input.accept(Buffer.buffer().appendBytes(new byte[6]));
-        assertEquals(2, buffers.size());
+        input.accept(Buffer.buffer().appendInt(4));
+        input.accept(Buffer.buffer().appendBytes(new byte[4]));
+        input.accept(Buffer.buffer().appendInt(4));
         input.accept(Buffer.buffer().appendBytes(new byte[2]));
+        assertEquals(2, buffers.size());
+
+        input.accept(Buffer.buffer().appendBytes(new byte[2]));
+
         assertEquals(3, buffers.size());
     }
 
