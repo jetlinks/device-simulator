@@ -285,7 +285,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     public void print(String log, Object... args) {
         logs.add(new DateTime().toString("HH:mm:ss.SSS") + " " + String.format(log, args));
-        if (logs.size() > 20) {
+        if (logs.size() > 100) {
             logs.removeFirst();
         }
     }

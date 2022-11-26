@@ -60,8 +60,9 @@ public class ConnectionAttachCommand extends EditableAttachCommand {
 
     }
 
+
     @Override
-    protected void createDisplay(List<AttributedString> lines) {
+    protected void createHeader(List<AttributedString> lines) {
         lines.add(
                 createLine(builder -> builder
                         .append(connection.getId(), blue)
@@ -91,6 +92,12 @@ public class ConnectionAttachCommand extends EditableAttachCommand {
                                                     .longValue()), green)
                         .append(")"))
         );
+    }
+
+
+    @Override
+    protected void createBody(List<AttributedString> lines) {
+
         for (List<AttributedString> message : messages) {
             lines.addAll(message);
         }

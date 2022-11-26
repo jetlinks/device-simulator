@@ -1,6 +1,5 @@
 package org.jetlinks.simulator.cmd;
 
-import org.jline.builtins.Nano;
 import org.jline.keymap.KeyMap;
 import org.jline.terminal.MouseEvent;
 import org.jline.terminal.Terminal;
@@ -19,7 +18,11 @@ import static org.jline.keymap.KeyMap.key;
 public class EditableAttachCommand extends AttachCommand {
 
     protected static final AttributedStyle helpBg = AttributedStyle.BOLD
-            .background(AttributedStyle.BLUE).foreground(AttributedStyle.WHITE);
+            .background(0x57, 0xC2, 0xC5).foreground(AttributedStyle.BLACK);
+
+    protected static final AttributedStyle cursorStyle = AttributedStyle.BOLD
+            .background(AttributedStyle.WHITE).foreground(AttributedStyle.BLACK);
+
     protected static final AttributedStyle black = AttributedStyle.BOLD.background(AttributedStyle.BLACK);
 
     protected StringBuilder editBuffer;
@@ -33,6 +36,9 @@ public class EditableAttachCommand extends AttachCommand {
 
     private MouseEvent mouseEvent;
 
+    private List<AttributedString> currentFooter;
+
+
     @Override
     protected void init() {
         editBuffer = new StringBuilder();
@@ -44,14 +50,34 @@ public class EditableAttachCommand extends AttachCommand {
     }
 
 
-    protected void createDisplay(List<AttributedString> container) {
+    protected void createHeader(List<AttributedString> lines) {
+
+    }
+
+    protected void createBody(List<AttributedString> lines) {
 
 
     }
+
+    protected void setFooter(List<AttributedString> footer) {
+        this.currentFooter = footer;
+    }
+
 
     protected String inputHelp() {
-        return "Command -> ";
+        return "Command: ";
     }
+
+    private long lastShowTime = System.currentTimeMillis();
+
+    protected boolean showCursor() {
+        if (System.currentTimeMillis() - lastShowTime >= 500) {
+            lastShowTime = System.currentTimeMillis();
+            return true;
+        }
+        return false;
+    }
+
 
     @Override
     protected synchronized final boolean display() {
@@ -59,87 +85,56 @@ public class EditableAttachCommand extends AttachCommand {
             return true;
         }
         display.clear();
-
-        LinkedList<AttributedString> info = new LinkedList<>();
-
-        createDisplay(info);
-
+        LinkedList<AttributedString> header = new LinkedList<>();
+        LinkedList<AttributedString> body = new LinkedList<>();
         LinkedList<AttributedString> footer = new LinkedList<>();
 
-        String help = inputHelp();
-        footer.add(createLine(builder -> builder
-                .append(help, helpBg)
-                .append(editBuffer.toString(), helpBg)));
+        createHeader(header);
+        createBody(body);
 
-        addFooter(footer);
+        AttributedString input = createLine(builder -> {
+            builder.append(inputHelp(), helpBg);
 
-        int over = terminal.getHeight() - footer.size() - info.size();
-        if (over != 0) {
-            for (int i = 0; i < Math.abs(over); i++) {
-                //超过缓冲区
-                if (over < 0) {
-                    info.removeLast();
-                } else {
-                    info.add(createLine(builder -> builder.append("")));
+            if (!showCursor()) {
+                builder.append(editBuffer.toString());
+                return;
+            }
+            //模拟光标
+            if (curPos == 0 && editBuffer.length() > 0) {
+                builder.append(editBuffer.substring(0, 1), cursorStyle);
+                if (editBuffer.length() > 1) {
+                    builder.append(editBuffer.substring(1, editBuffer.length()));
                 }
+            } else if (curPos < editBuffer.length()) {
+                builder.append(editBuffer.substring(0, curPos));
+                builder.append(editBuffer.substring(curPos, curPos + 1), cursorStyle);
+                builder.append(editBuffer.substring(curPos + 1, editBuffer.length()));
+            } else {
+                builder.append(editBuffer.toString())
+                       .append(" ", cursorStyle);
+            }
+        });
+        footer.add(input);
+
+        if (currentFooter != null) {
+            footer.addAll(currentFooter);
+        }
+
+        int bodyAliveHeight = terminal.getHeight() - footer.size() - header.size();
+
+        while (body.size() != bodyAliveHeight) {
+            if (body.size() > bodyAliveHeight) {
+                body.removeFirst();
+            } else {
+                body.add(createLine(builder -> builder.append("")));
             }
         }
 
-        info.addAll(footer);
-
-
-        // int cursorNeed = terminal.getHeight() - footer.size() - curIndex;
-        curIndex = terminal.getHeight() - footer.size();
-
-        display.update(info, 0, false);
-//        for (int i = 0; i < Math.abs(cursorNeed); i++) {
-//            if (cursorNeed > 0) {
-//                if (terminal.puts(parm_down_cursor, curIndex)) {
-//                    break;
-//                }
-//                terminal.puts(InfoCmp.Capability.cursor_down);
-//            } else {
-//                if (terminal.puts(parm_up_cursor, curIndex)) {
-//                    break;
-//                }
-//                terminal.puts(InfoCmp.Capability.cursor_up);
-//            }
-//        }
-
-        //   terminal.puts(cursor_visible);
-        //  if (cursorNeed != 0) {
-        //  terminal.puts(InfoCmp.Capability.save_cursor);
-        if (mouseEvent != null) {
-            terminal.puts(InfoCmp.Capability.cursor_address, mouseEvent.getY(), mouseEvent.getX());
-        } else {
-            terminal.puts(InfoCmp.Capability.cursor_address, curIndex, curPos + help.length());
-        }
-
-//        terminal.puts(save_cursor);
-        terminal.flush();
-        //   }
-
-
-//        if (oldLineSize != lineSize) {
-//            InfoCmp.Capability capability = oldLineSize < lineSize ? InfoCmp.Capability.cursor_down : InfoCmp.Capability.cursor_up;
-//            for (int i = 0, s = Math.abs(oldLineSize - lineSize); i < s; i++) {
-//                terminal.puts(capability);
-//            }
-//            terminal.puts(InfoCmp.Capability.save_cursor);
-//            terminal.puts(InfoCmp.Capability.cursor_address, lineSize, 0);
-//        }
-
+        header.addAll(body);
+        header.addAll(footer);
+        display.update(header, 0, true);
 
         return true;
-    }
-
-    protected final void addFooter(List<AttributedString> source) {
-        if (current == EditorOperation.TAP) {
-            source.add(AttributedString.fromAnsi("commands: "));
-        } else {
-            source.add(AttributedString.fromAnsi("Enter Execute"));
-        }
-
     }
 
     @Override
@@ -159,8 +154,8 @@ public class EditableAttachCommand extends AttachCommand {
 
         keys.bind(EditorOperation.EXECUTE, "\r", key(terminal, InfoCmp.Capability.key_enter));
 
-        keys.bind(EditorOperation.RIGHT, key(terminal, InfoCmp.Capability.key_right),ctrl('b'));
-        keys.bind(EditorOperation.LEFT, key(terminal, InfoCmp.Capability.key_left),ctrl('f'));
+        keys.bind(EditorOperation.RIGHT, key(terminal, InfoCmp.Capability.key_right), ctrl('b'));
+        keys.bind(EditorOperation.LEFT, key(terminal, InfoCmp.Capability.key_left), ctrl('f'));
 
         keys.bind(EditorOperation.UP, key(terminal, InfoCmp.Capability.key_up));
         keys.bind(EditorOperation.DOWN, key(terminal, InfoCmp.Capability.key_down));
@@ -169,7 +164,7 @@ public class EditableAttachCommand extends AttachCommand {
         keys.bind(EditorOperation.LAST, KeyMap.ctrl('e'));
 
 
-        keys.bind(EditorOperation.BACKSPACE,ctrl('h'), KeyMap.del(), key(terminal, InfoCmp.Capability.delete_character));
+        keys.bind(EditorOperation.BACKSPACE, ctrl('h'), KeyMap.del(), key(terminal, InfoCmp.Capability.delete_character));
 
         keys.bind(EditorOperation.MOUSE_EVENT, key(terminal, InfoCmp.Capability.key_mouse));
 

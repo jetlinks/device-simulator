@@ -77,71 +77,76 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         }
 
         @Override
-        protected void createDisplay(List<AttributedString> lines) {
-            AttributedStringBuilder builder = new AttributedStringBuilder();
-
+        protected void createHeader(List<AttributedString> lines) {
             for (Benchmark benchmark : benchmarks) {
-                Reporter.Aggregate connection = benchmark.getReporter().aggregate(Benchmark.REPORT_CONNECTING);
+                lines.add(
+                        createLine(builder -> {
+                            Reporter.Aggregate connection = benchmark
+                                    .getReporter()
+                                    .aggregate(Benchmark.REPORT_CONNECTING);
 
-                builder.append("Benchmark(")
-                       .append(benchmark.getName(), green)
-                       .append(") size: ")
-                       .append(String.valueOf(benchmark.getOptions().getSize()), green)
-                       .append(" completed: ")
-                       .append(String.valueOf(Math.abs(connection.getTotal() - connection.getExecuting())), green)
-                       .append(" connecting: ")
-                       .append(String.valueOf(connection.getExecuting()), green)
-                       .append(" Time distribution: ");
+                            builder.append("Benchmark(")
+                                   .append(benchmark.getName(), green)
+                                   .append(") size: ")
+                                   .append(String.valueOf(benchmark.getOptions().getSize()), green)
+                                   .append(" completed: ")
+                                   .append(String.valueOf(Math.abs(connection.getTotal() - connection.getExecuting())), green)
+                                   .append(" connecting: ")
+                                   .append(String.valueOf(connection.getExecuting()), green)
+                                   .append(" Time distribution: ");
 
-                int i = 0;
-                for (Map.Entry<Duration, Long> entry : connection.getDistribution().entrySet()) {
-                    if (i++ > 0) {
-                        builder.append(",");
-                    }
-                    builder
-                            .append(String.valueOf(entry.getValue()), green)
-                            .append(">=")
-                            .append(String.valueOf(entry.getKey().toMillis()))
-                            .append("ms");
-                }
+                            int i = 0;
+                            for (Map.Entry<Duration, Long> entry : connection.getDistribution().entrySet()) {
+                                if (i++ > 0) {
+                                    builder.append(",");
+                                }
+                                builder
+                                        .append(String.valueOf(entry.getValue()), green)
+                                        .append(">=")
+                                        .append(String.valueOf(entry.getKey().toMillis()))
+                                        .append("ms");
+                            }
 
-                lines.add(builder.toAttributedString());
+                        })
+                );
 
-                builder.setLength(0);
+                lines.add(
+                        createLine(builder -> {
+                            ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
+                            if (summary != null) {
+                                builder.append("               ")
+                                       .append(" alive: ")
+                                       .append(String.valueOf(summary.getConnected()), green)
+                                       .append(" sent: ")
+                                       .append(String.valueOf(summary.getSent()), green)
+                                       .append("(")
+                                       .append(formatBytes(summary.getSentBytes()), blue)
+                                       .append(")")
+                                       .append(" received: ")
+                                       .append(String.valueOf(summary.getReceived()), green)
+                                       .append("(")
+                                       .append(formatBytes(summary.getReceivedBytes()), blue)
+                                       .append(")");
+                            }
 
-                ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
-                if (summary != null) {
-                    builder.append("               ")
-                           .append(" alive: ")
-                           .append(String.valueOf(summary.getConnected()), green)
-                           .append(" sent: ")
-                           .append(String.valueOf(summary.getSent()), green)
-                           .append("(")
-                           .append(formatBytes(summary.getSentBytes()), blue)
-                           .append(")")
-                           .append(" received: ")
-                           .append(String.valueOf(summary.getReceived()), green)
-                           .append("(")
-                           .append(formatBytes(summary.getReceivedBytes()), blue)
-                           .append(")");
-                }
+                            Throwable lastError = benchmark.getLastError();
+                            if (null != lastError) {
+                                builder.append(" Last Error: ")
+                                       .append(ExceptionUtils.getErrorMessage(lastError), red);
 
-                Throwable lastError = benchmark.getLastError();
-                if (null != lastError) {
-                    builder.append(" Last Error: ")
-                           .append(ExceptionUtils.getErrorMessage(lastError), red);
+                            }
+                        })
+                );
+            }
+        }
 
-                }
-
-                lines.add(builder.toAttributedString());
-
-                builder.setLength(0);
+        @Override
+        protected void createBody(List<AttributedString> lines) {
+            for (Benchmark benchmark : benchmarks) {
 
                 for (String log : benchmark.getLogs()) {
                     for (String l : log.split("\n")) {
-                        builder.append(l, blue);
-                        lines.add(builder.toAttributedString());
-                        builder.setLength(0);
+                        lines.add(createLine(builder -> builder.append(l, blue)));
                     }
                 }
             }

@@ -42,7 +42,6 @@ public class MqttAttachCommand extends ConnectionAttachCommand {
             }
         }
     }
-
     private void appendMessage(MqttPublishMessage message) {
 
         List<AttributedString> msgLine = new ArrayList<>();
@@ -67,7 +66,7 @@ public class MqttAttachCommand extends ConnectionAttachCommand {
         }
 
         messages.add(msgLine);
-        if (messages.size() > 5) {
+        if (messages.size() > 50) {
             messages.removeFirst();
         }
 

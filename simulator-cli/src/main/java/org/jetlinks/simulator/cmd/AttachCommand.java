@@ -73,7 +73,7 @@ public abstract class AttachCommand extends CommonCommand {
             }
             terminal.puts(InfoCmp.Capability.keypad_xmit);
 
-//            terminal.puts(InfoCmp.Capability.cursor_invisible);
+            terminal.puts(InfoCmp.Capability.cursor_invisible);
 
 
             size.copy(terminal.getSize());
