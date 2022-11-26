@@ -1,14 +1,13 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
 import org.jetlinks.simulator.cmd.CommonCommand;
-import org.jetlinks.simulator.cmd.EditableAttachCommand;
+import org.jetlinks.simulator.cmd.AttachCommand;
 import org.jetlinks.simulator.core.ConnectionManager;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.report.Reporter;
 import org.jline.utils.AttributedString;
-import org.jline.utils.AttributedStringBuilder;
 import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
@@ -55,7 +54,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
     @CommandLine.Command(name = "stats",
             description = "Show Benchmark stats",
             headerHeading = "%n")
-    static class StatsCommand extends EditableAttachCommand implements Runnable {
+    static class StatsCommand extends AttachCommand implements Runnable {
 
         @CommandLine.Option(names = {"--name"}, description = "名称")
         private String name;
@@ -146,7 +145,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
                 for (String log : benchmark.getLogs()) {
                     for (String l : log.split("\n")) {
-                        lines.add(createLine(builder -> builder.append(l, blue)));
+                        lines.add(createLine(builder -> builder.append(l)));
                     }
                 }
             }

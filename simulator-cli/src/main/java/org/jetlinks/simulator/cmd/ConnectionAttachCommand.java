@@ -13,7 +13,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-public class ConnectionAttachCommand extends EditableAttachCommand {
+public class ConnectionAttachCommand extends AttachCommand {
 
 
     @Getter

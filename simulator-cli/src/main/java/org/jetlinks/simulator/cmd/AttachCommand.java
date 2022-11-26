@@ -1,232 +1,293 @@
 package org.jetlinks.simulator.cmd;
 
-
-import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.simulator.core.ExceptionUtils;
-import org.jline.keymap.BindingReader;
 import org.jline.keymap.KeyMap;
-import org.jline.terminal.Attributes;
-import org.jline.terminal.Cursor;
-import org.jline.terminal.Size;
+import org.jline.terminal.MouseEvent;
 import org.jline.terminal.Terminal;
-import org.jline.utils.*;
-import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
+import org.jline.utils.AttributedString;
+import org.jline.utils.AttributedStyle;
+import org.jline.utils.InfoCmp;
+import picocli.CommandLine;
 
-import java.time.Duration;
-import java.util.EnumSet;
-import java.util.function.Consumer;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 
-import static org.jline.utils.InfoCmp.Capability.cursor_address;
-import static org.jline.utils.InfoCmp.Capability.keypad_local;
+import static org.jline.keymap.KeyMap.ctrl;
+import static org.jline.keymap.KeyMap.key;
 
-@Slf4j
-public abstract class AttachCommand extends CommonCommand {
+@CommandLine.Command(name = "edit", hidden = true)
+public class AttachCommand extends FullScreenCommand {
 
-    protected static final AttributedStyle green = AttributedStyle.BOLD.foreground(AttributedStyle.GREEN);
-    protected static final AttributedStyle blue = AttributedStyle.BOLD.foreground(AttributedStyle.BLUE);
-    protected static final AttributedStyle red = AttributedStyle.BOLD.foreground(AttributedStyle.RED);
+    protected static final AttributedStyle helpBg = AttributedStyle.BOLD
+            .background(0x57, 0xC2, 0xC5).foreground(AttributedStyle.BLACK);
 
+    protected static final AttributedStyle cursorStyle = AttributedStyle.BOLD
+            .background(AttributedStyle.WHITE).foreground(AttributedStyle.BLACK);
 
-    protected Display display;
-    private KeyMap<Operation> keys;
-    protected BindingReader bindingReader;
-    protected Terminal terminal;
+    protected static final AttributedStyle black = AttributedStyle.BOLD.background(AttributedStyle.BLACK);
 
-    protected final Size size = new Size();
-    protected Disposable disposable;
+    protected StringBuilder editBuffer;
+
+    private int curPos;
+
+    private EditorOperation current;
+
+    private int curIndex = 0;
+    private boolean paused = false;
+
+    private MouseEvent mouseEvent;
+
+    private List<AttributedString> currentFooter;
+
+    private boolean windowsTerminal;
+
+    private LinkedList<AttributedString> lastLines;
 
     @Override
-    public final void run() {
-        terminal = main().getTerminal();
-        bindingReader = new BindingReader(terminal.reader());
-        keys = new KeyMap<>();
-        bindKey();
-        display = new Display(terminal, true);
-        int delay = 500;
+    protected void destroy() {
+        super.destroy();
+        lastLines = null;
+    }
 
-        init();
-
-        Terminal.SignalHandler prevHandler = terminal.handle(Terminal.Signal.WINCH, this::handle);
-        Attributes attr = terminal.getAttributes();
-
-        Throwable[] error = new Throwable[1];
-
-        try {
-            Attributes newAttr = new Attributes(attr);
-//            newAttr.setLocalFlags(EnumSet.of(Attributes.LocalFlag.ICANON, Attributes.LocalFlag.ECHO, Attributes.LocalFlag.IEXTEN), false);
-//            newAttr.setInputFlags(EnumSet.of(Attributes.InputFlag.IXON, Attributes.InputFlag.ICRNL, Attributes.InputFlag.INLCR), false);
-//            newAttr.setControlChar(Attributes.ControlChar.VMIN, 0);
-//            newAttr.setControlChar(Attributes.ControlChar.VTIME, 1);
-            newAttr.setLocalFlags(EnumSet.of(Attributes.LocalFlag.ICANON, Attributes.LocalFlag.ECHO, Attributes.LocalFlag.IEXTEN), false);
-            newAttr.setInputFlags(EnumSet.of(Attributes.InputFlag.IXON, Attributes.InputFlag.ICRNL, Attributes.InputFlag.INLCR), false);
-            newAttr.setControlChar(Attributes.ControlChar.VMIN, 0);
-            newAttr.setControlChar(Attributes.ControlChar.VTIME, 1);
-            newAttr.setControlChar(Attributes.ControlChar.VINTR, 0);
-            terminal.setAttributes(newAttr);
-
-            if (!terminal.puts(InfoCmp.Capability.enter_ca_mode)) {
-                terminal.puts(InfoCmp.Capability.clear_screen);
-            }
-            terminal.puts(InfoCmp.Capability.keypad_xmit);
-
-            terminal.puts(InfoCmp.Capability.cursor_invisible);
+    @Override
+    protected void init() {
+        this.windowsTerminal = terminal.getClass().getSimpleName().endsWith("WinSysTerminal");
+        editBuffer = new StringBuilder();
+        curPos = 0;
+        current = null;
+        curIndex = 0;
+        paused = false;
+        terminal.trackMouse(Terminal.MouseTracking.Button);
+//        setFooter(Collections.singletonList(
+//                createLine(builder -> {
+//                    builder.append("Ctrl+c exit.", green);
+//                })
+//        ));
+    }
 
 
-            size.copy(terminal.getSize());
-            display.resize(size.getRows(), size.getColumns());
-
-            disposable = Flux
-                    .interval(Duration.ofMillis(delay), Schedulers.boundedElastic())
-                    .onBackpressureDrop()
-                    .limitRate(1)
-                    .doOnNext(ignore -> {
-                        try {
-                            Size tSize = terminal.getSize();
-                            if (tSize.getRows() > 0 && tSize.getColumns() > 0) {
-                                if (!tSize.equals(size)) {
-                                    size.copy(tSize);
-                                    display.resize(size.getRows(), size.getColumns());
-                                    display.clear();
-                                }
-                            }
-                            display();
-                        } catch (Throwable err) {
-                            error[0] = err;
-                        }
-                    })
-                    .subscribe();
-
-            display();
-            do {
-                checkInterrupted();
-                Operation op = bindingReader.readBinding(keys);
-                if (op == null) {
-                    continue;
-                }
-                if (op == DefaultOperation.EXIT) {
-                    break;
-                }
-                if (op == DefaultOperation.CLEAR) {
-                    display.clear();
-                    break;
-                }
-                if (!doOn(op)) {
-                    break;
-                }
-                display();
-            } while (error[0] == null);
-        } catch (InterruptedException ie) {
-            // Do nothing
-        } catch (Throwable err) {
-            error[0] = err;
-        } finally {
-            disposable.dispose();
-            destroy();
-
-            display.clear();
-
-            terminal.setAttributes(attr);
-            if (prevHandler != null) {
-                terminal.handle(Terminal.Signal.WINCH, prevHandler);
-            }
-            // Use main buffer
-            if (!terminal.puts(InfoCmp.Capability.exit_ca_mode)) {
-                terminal.puts(InfoCmp.Capability.clear_screen);
-            }
-            terminal.puts(keypad_local);
-            terminal.puts(InfoCmp.Capability.cursor_visible);
-            // terminal.puts(cursor_address, cursor.getY(), cursor.getX());
-            terminal.flush();
-            if (null != error[0]) {
-                log.error("", ExceptionUtils.tryGetRealError(error[0]));
-            }
-
-        }
+    protected void createHeader(List<AttributedString> lines) {
 
     }
 
-    protected boolean doOn(Operation operation) {
+    protected void createBody(List<AttributedString> lines) {
+
+
+    }
+
+    protected void setFooter(List<AttributedString> footer) {
+        this.currentFooter = footer;
+    }
+
+
+    protected String inputHelp() {
+        return "Command:";
+    }
+
+    private long lastShowTime = System.currentTimeMillis();
+
+    protected boolean showCursor() {
+        if(windowsTerminal){
+            return true;
+        }
+        if (System.currentTimeMillis() - lastShowTime >= 500) {
+            lastShowTime = System.currentTimeMillis();
+            return true;
+        }
+        return false;
+    }
+
+
+    @Override
+    protected synchronized final boolean display() {
+        if (paused || disposable == null || disposable.isDisposed()) {
+            return true;
+        }
+        LinkedList<AttributedString> header = new LinkedList<>();
+        LinkedList<AttributedString> body = new LinkedList<>();
+        LinkedList<AttributedString> footer = new LinkedList<>();
+
+        createHeader(header);
+        createBody(body);
+
+        AttributedString input = createLine(builder -> {
+            builder.append(inputHelp(), helpBg);
+
+            if (!showCursor()) {
+                builder.append(editBuffer.toString());
+                return;
+            }
+            //模拟光标
+            if (curPos == 0 && editBuffer.length() > 0) {
+                builder.append(editBuffer.substring(0, 1), cursorStyle);
+                if (editBuffer.length() > 1) {
+                    builder.append(editBuffer.substring(1, editBuffer.length()));
+                }
+            } else if (curPos < editBuffer.length()) {
+                builder.append(editBuffer.substring(0, curPos));
+                builder.append(editBuffer.substring(curPos, curPos + 1), cursorStyle);
+                builder.append(editBuffer.substring(curPos + 1, editBuffer.length()));
+            } else {
+                builder.append(editBuffer.toString())
+                       .append(" ", cursorStyle);
+            }
+        });
+        footer.add(input);
+
+        if (currentFooter != null) {
+            footer.addAll(currentFooter);
+        }
+
+        while (footer.size() < 3) {
+            footer.add(createLine(builder -> builder.append("")));
+        }
+
+        int bodyAliveHeight = terminal.getHeight() - footer.size() - header.size();
+
+        while (body.size() != bodyAliveHeight) {
+            if (body.size() > bodyAliveHeight) {
+                body.removeFirst();
+            } else {
+                body.add(createLine(builder -> builder.append("")));
+            }
+        }
+
+        header.addAll(body);
+        header.addAll(footer);
+
+        if (windowsTerminal && !Objects.equals(header, lastLines)) {
+            display.clear();
+        }
+        lastLines = header;
+        display.update(header, 0, true);
+
         return true;
     }
 
+    @Override
     protected void bindDefault(KeyMap<Operation> keys) {
-        keys.bind(DefaultOperation.EXIT, "q", ":q", "Q", ":Q", "ZZ");
-        keys.bind(DefaultOperation.CLEAR, KeyMap.ctrl('L'));
+        keys.bind(DefaultOperation.EXIT, KeyMap.ctrl('c'));
+
+        keys.bind(DefaultOperation.CLEAR, KeyMap.ctrl('l'));
+
+        keys.setUnicode(EditorOperation.INSERT);
+        for (char i = 32; i < 256; i++) {
+            keys.bind(EditorOperation.INSERT, Character.toString(i));
+        }
+
+        keys.bind(EditorOperation.HELP, KeyMap.ctrl('?'));
+
+        keys.bind(EditorOperation.TAP, key(terminal, InfoCmp.Capability.tab));
+
+        keys.bind(EditorOperation.EXECUTE, "\r", key(terminal, InfoCmp.Capability.key_enter));
+
+        keys.bind(EditorOperation.RIGHT, key(terminal, InfoCmp.Capability.key_right), ctrl('b'));
+        keys.bind(EditorOperation.LEFT, key(terminal, InfoCmp.Capability.key_left), ctrl('f'));
+
+        keys.bind(EditorOperation.UP, key(terminal, InfoCmp.Capability.key_up));
+        keys.bind(EditorOperation.DOWN, key(terminal, InfoCmp.Capability.key_down));
+
+        keys.bind(EditorOperation.FIRST, KeyMap.ctrl('a'));
+        keys.bind(EditorOperation.LAST, KeyMap.ctrl('e'));
+
+
+        keys.bind(EditorOperation.BACKSPACE, ctrl('h'), KeyMap.del(), key(terminal, InfoCmp.Capability.delete_character));
+
+        keys.bind(EditorOperation.MOUSE_EVENT, key(terminal, InfoCmp.Capability.key_mouse));
+
+
     }
 
-    private KeyMap<Operation> getKeyMap() {
-        return keys;
-    }
+    @Override
+    protected boolean doOn(Operation operation) {
+        super.doOn(operation);
+        paused = false;
+        mouseEvent = null;
+        if (operation instanceof EditorOperation) {
+            EditorOperation opt = ((EditorOperation) operation);
+            switch (opt) {
+                case EXECUTE:
+                    return execute();
+                case MOUSE_EVENT:
+                    // paused = true;
+                    mouseEvent = terminal.readMouseEvent();
 
-
-    protected interface Operation {
-
-    }
-
-    public enum DefaultOperation implements Operation {
-        EXIT, CLEAR
-    }
-
-    private void handle(Terminal.Signal signal) {
-        int prevw = size.getColumns();
-        size.copy(terminal.getSize());
-        try {
-            if (size.getColumns() < prevw) {
-                display.clear();
+                    break;
+                default:
+                    curPos = editInputBuffer(opt, curPos);
+                    break;
             }
-            display();
-        } catch (Throwable e) {
-            // ignore
-        }
-    }
-
-    protected void init() {
-
-    }
-
-    protected void destroy() {
-
-    }
-
-    protected abstract boolean display();
-
-    static final ThreadLocal<AttributedStringBuilder> LINE_BUILDER = ThreadLocal.withInitial(AttributedStringBuilder::new);
-
-    protected AttributedString createLine(Consumer<AttributedStringBuilder> consumer) {
-        AttributedStringBuilder builder = LINE_BUILDER.get();
-        try {
-            consumer.accept(builder);
-            return builder.toAttributedString();
-        } finally {
-            builder.setLength(0);
-        }
-    }
-
-    protected void bindKey() {
-        bindDefault(keys);
-    }
-
-
-    private void checkInterrupted() throws InterruptedException {
-        Thread.yield();
-        if (Thread.currentThread().isInterrupted()) {
-            throw new InterruptedException();
-        }
-    }
-
-
-    static String[] formats = {"B", "KB", "MB", "GB"};
-
-    protected static String formatBytes(long bytes) {
-        int i = 0;
-        float total = bytes;
-        while (total >= 1024 && i < formats.length - 1) {
-            total /= 1024;
-            i++;
         }
 
-        return String.format("%.2f%s", total, formats[i]);
+        return true;
+
+    }
+
+    private boolean execute() {
+
+
+        String command = editBuffer.toString().trim();
+        switch (command) {
+            case "q:":
+            case "exit":
+
+                return false;
+            case "clear":
+                display.clear();
+                break;
+        }
+
+        editBuffer.setLength(0);
+        curPos = 0;
+        return true;
+    }
+
+    private int editInputBuffer(EditorOperation operation, int curPos) {
+        switch (operation) {
+            case INSERT:
+                editBuffer.insert(curPos++, bindingReader.getLastBinding());
+                break;
+            case BACKSPACE:
+                if (curPos > 0) {
+                    editBuffer.deleteCharAt(--curPos);
+                }
+                break;
+            case FIRST:
+                curPos = 0;
+                break;
+            case LAST:
+                curPos = editBuffer.length();
+                break;
+            case LEFT:
+                if (curPos > 0) {
+                    curPos--;
+                }
+                break;
+            case RIGHT:
+                if (curPos < editBuffer.length()) {
+                    curPos++;
+                }
+                break;
+        }
+        return curPos;
+    }
+
+
+    enum EditorOperation implements Operation {
+        INSERT,
+        BACKSPACE,
+        PRE,
+        NEXT,
+        FIRST,
+        LAST,
+        LEFT,
+        RIGHT,
+        UP,
+        DOWN,
+        EXECUTE,
+        TAP,
+        MOUSE_EVENT,
+        HELP
     }
 }
