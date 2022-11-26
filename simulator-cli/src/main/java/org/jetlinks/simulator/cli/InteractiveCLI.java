@@ -7,11 +7,13 @@ import java.nio.file.Paths;
 import java.util.function.Supplier;
 
 import lombok.SneakyThrows;
+import org.jline.builtins.Completers;
 import org.jline.console.SystemRegistry;
 import org.jline.console.impl.Builtins;
 import org.jline.console.impl.SystemRegistryImpl;
 import org.jline.reader.*;
 import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.Display;
@@ -20,9 +22,11 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.core.Appender;
+import picocli.AutoComplete;
 import picocli.CommandLine;
 import picocli.CommandLine.Help;
 import picocli.shell.jline3.PicocliCommands;
+import picocli.shell.jline3.PicocliJLineCompleter;
 
 public class InteractiveCLI {
 
@@ -59,12 +63,13 @@ public class InteractiveCLI {
         systemRegistry.setCommandRegistries(builtins, picocliCommands);
 
         systemRegistry.register("help", picocliCommands);
-
         // Create Interactive Shell
         console = LineReaderBuilder
                 .builder()
                 .terminal(terminal)
-                .completer(systemRegistry.completer())
+                .completer(new AggregateCompleter(systemRegistry.completer(),
+                                                  new PicocliJLineCompleter(commandLine.getCommandSpec()),
+                                                  new Completers.FileNameCompleter()))
                 .parser(parser)
                 .variable(LineReader.HISTORY_FILE, "simulator-cli-history")
                 .variable(LineReader.HISTORY_IGNORE,"help|cls|clear|exit")

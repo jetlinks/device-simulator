@@ -48,19 +48,23 @@ class MqttBenchMark extends AbstractBenchmarkCommand implements Runnable {
         }
 
         @Override
-        @CommandLine.Option(names = {"-c", "--clientId"}, description = "clientId,支持表达式:${index}", order = 3, defaultValue = "mqtt-simulator-${index}", required = true)
+        @CommandLine.Option(names = {"-c", "--clientId"},
+                description = "clientId template",
+                order = 3,
+                defaultValue = "mqtt-simulator-\\$\\{index\\}",
+                required = true)
         public void setClientId(String clientId) {
             super.setClientId(clientId);
         }
 
         @Override
-        @CommandLine.Option(names = {"-u", "--username"}, description = "username,支持表达式:${index}", order = 4, defaultValue = "mqtt-simulator")
+        @CommandLine.Option(names = {"-u", "--username"}, description = "username template", order = 4, defaultValue = "mqtt-simulator")
         public void setUsername(String username) {
             super.setUsername(username);
         }
 
         @Override
-        @CommandLine.Option(names = {"-P", "--password"}, description = "password,支持表达式:${index}", order = 5, defaultValue = "mqtt-simulator")
+        @CommandLine.Option(names = {"-P", "--password"}, description = "password template}", order = 5, defaultValue = "mqtt-simulator")
         public void setPassword(String password) {
             super.setPassword(password);
         }

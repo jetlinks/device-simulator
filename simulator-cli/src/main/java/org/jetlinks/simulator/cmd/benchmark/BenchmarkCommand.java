@@ -156,30 +156,30 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
     public static class Options extends BenchmarkOptions {
         @Override
-        @CommandLine.Option(names = {"--name"}, description = "名称", order = 90)
+        @CommandLine.Option(names = {"--name"}, description = "Set Unique name", order = 90)
         public void setName(String name) {
             super.setName(name);
         }
 
         @Override
-        @CommandLine.Option(names = {"--index"}, description = "起始序号,可以在脚本中获取序号来动态生成设备标识", defaultValue = "0", order = 100)
+        @CommandLine.Option(names = {"--index"}, description = "Start index", defaultValue = "0", order = 100)
         public void setIndex(int index) {
             super.setIndex(index);
         }
 
-        @CommandLine.Option(names = {"--size"}, description = "创建客户端数量", defaultValue = "1", order = 101)
+        @CommandLine.Option(names = {"--size"}, description = "Number of create", defaultValue = "1", order = 101)
         @Override
         public void setSize(int size) {
             super.setSize(size);
         }
 
-        @CommandLine.Option(names = {"--concurrency"}, description = "并发量,同时请求的最大数量.", defaultValue = "8", order = 102)
+        @CommandLine.Option(names = {"--concurrency"}, description = "Concurrency", defaultValue = "8", order = 102)
         @Override
         public void setConcurrency(int concurrency) {
             super.setConcurrency(concurrency);
         }
 
-        @CommandLine.Option(names = {"--script"}, description = "自定义处理脚本,参照: template.js", order = 103)
+        @CommandLine.Option(names = {"--script"}, description = "Script File", order = 103)
         @Override
         public void setFile(File file) {
             super.setFile(file);
