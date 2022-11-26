@@ -58,19 +58,19 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
         }
 
         @Override
-        @CommandLine.Option(names = {"-c", "--clientId"}, description = "clientId", order = 3, defaultValue = "mqtt-simulator")
+        @CommandLine.Option(names = {"-c", "--clientId"}, description = "MQTT clientId", order = 3, defaultValue = "mqtt-simulator")
         public void setClientId(String clientId) {
             super.setClientId(clientId);
         }
 
         @Override
-        @CommandLine.Option(names = {"-u", "--username"}, description = "用户名", order = 4, defaultValue = "mqtt-simulator")
+        @CommandLine.Option(names = {"-u", "--username"}, description = "MQTT username", order = 4, defaultValue = "mqtt-simulator")
         public void setUsername(String username) {
             super.setUsername(username);
         }
 
         @Override
-        @CommandLine.Option(names = {"-P", "--password"}, description = "密码", order = 5, defaultValue = "mqtt-simulator")
+        @CommandLine.Option(names = {"-P", "--password"}, description = "MQTT password", order = 5, defaultValue = "mqtt-simulator")
         public void setPassword(String password) {
             super.setPassword(password);
         }

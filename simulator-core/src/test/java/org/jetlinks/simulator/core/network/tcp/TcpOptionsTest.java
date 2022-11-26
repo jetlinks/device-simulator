@@ -19,11 +19,16 @@ class TcpOptionsTest {
 
         Consumer<Buffer> input = options.createParser(buffers::add);
         input.accept(Buffer.buffer().appendInt(4));
-        assertEquals(0,buffers.size());
+        assertEquals(0, buffers.size());
 
         input.accept(Buffer.buffer().appendBytes(new byte[4]));
 
-        assertEquals(1,buffers.size());
+        assertEquals(1, buffers.size());
+
+        input.accept(Buffer.buffer().appendBytes(new byte[6]));
+        assertEquals(2, buffers.size());
+        input.accept(Buffer.buffer().appendBytes(new byte[2]));
+        assertEquals(3, buffers.size());
     }
 
     @Test

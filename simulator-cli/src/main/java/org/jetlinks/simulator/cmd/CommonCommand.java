@@ -3,7 +3,7 @@ package org.jetlinks.simulator.cmd;
 import picocli.CommandLine;
 
 
-@CommandLine.Command(name = "CommonCommand", hidden = true)
+@CommandLine.Command(name = "CommonCommand")
 public class CommonCommand extends AbstractCommand implements Runnable{
 
 

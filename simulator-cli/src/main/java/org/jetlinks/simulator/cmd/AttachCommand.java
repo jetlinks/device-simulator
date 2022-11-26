@@ -16,7 +16,6 @@ import java.util.Objects;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
 
-@CommandLine.Command(name = "edit", hidden = true)
 public class AttachCommand extends FullScreenCommand {
 
     protected static final AttributedStyle helpBg = AttributedStyle.BOLD

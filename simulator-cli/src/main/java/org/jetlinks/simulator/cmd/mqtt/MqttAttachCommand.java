@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-@CommandLine.Command(name = "attach",aliases = "subscribe",description = "Subscribe mqtt client topic")
+@CommandLine.Command(name = "subscribe",aliases = "attach",description = "Subscribe mqtt client topic",hidden = false)
 public class MqttAttachCommand extends ConnectionAttachCommand {
 
     @Override
