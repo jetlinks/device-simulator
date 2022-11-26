@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @CommandLine.Command(name = "benchmark",
-        description = "压力测试",
+        description = "Run Benchmark",
         headerHeading = "%n",
         subcommands = {
                 MqttBenchMark.class,

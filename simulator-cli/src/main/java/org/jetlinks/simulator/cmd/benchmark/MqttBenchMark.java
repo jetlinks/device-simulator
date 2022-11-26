@@ -13,8 +13,7 @@ import java.util.Collections;
 @CommandLine.Command(name = "mqtt",
         showDefaultValues = true,
         description = {
-                "mqtt 压力测试,用于批量创建mqtt连接",
-                "clientId,username,password支持使用表达式动态生成,如: mqtt-test-\\${index\\}"
+                "Create MQTT Benchmark"
         },
         headerHeading = "%n", sortOptions = false)
 class MqttBenchMark extends AbstractBenchmarkCommand implements Runnable {

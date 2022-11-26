@@ -4,7 +4,7 @@ import org.jetlinks.simulator.cmd.CommonCommand;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "mqtt",
-        description = "mqtt相关操作",
+        description = "Mqtt client operations",
 subcommands = {
         MqttPublishCommand.class,
         ConnectMqttCommand.class,

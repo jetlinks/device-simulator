@@ -4,7 +4,7 @@ import org.jetlinks.simulator.cmd.CommonCommand;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "tcp",
-        description = "tcp相关操作",
+        description = "tcp client operations",
         subcommands = {
                 TcpSendCommand.class,
                 ConnectTcpCommand.class,

@@ -46,8 +46,6 @@ public abstract class AttachCommand extends CommonCommand {
         display = new Display(terminal, true);
         int delay = 500;
 
-        long t0 = System.currentTimeMillis();
-
         init();
 
         Terminal.SignalHandler prevHandler = terminal.handle(Terminal.Signal.WINCH, this::handle);
@@ -79,13 +77,11 @@ public abstract class AttachCommand extends CommonCommand {
             size.copy(terminal.getSize());
             display.resize(size.getRows(), size.getColumns());
 
-
             disposable = Flux
                     .interval(Duration.ofMillis(delay), Schedulers.boundedElastic())
                     .onBackpressureDrop()
                     .limitRate(1)
                     .doOnNext(ignore -> {
-
                         try {
                             Size tSize = terminal.getSize();
                             if (tSize.getRows() > 0 && tSize.getColumns() > 0) {

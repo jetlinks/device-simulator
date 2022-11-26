@@ -19,8 +19,7 @@ import reactor.core.Disposable;
                 ExecuteScriptCommand.class,
                 BenchmarkCommand.class,
                 MqttOperationCommand.class,
-                TcpOperationCommand.class,
-                EditableAttachCommand.class
+                TcpOperationCommand.class
         },
         customSynopsis = {""},
         synopsisHeading = "")

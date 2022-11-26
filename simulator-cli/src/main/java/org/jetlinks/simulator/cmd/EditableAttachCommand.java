@@ -14,7 +14,7 @@ import java.util.List;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
 
-@CommandLine.Command(name = "edit")
+@CommandLine.Command(name = "edit",hidden = true)
 public class EditableAttachCommand extends AttachCommand {
 
     protected static final AttributedStyle helpBg = AttributedStyle.BOLD
@@ -65,7 +65,7 @@ public class EditableAttachCommand extends AttachCommand {
 
 
     protected String inputHelp() {
-        return "Command: ";
+        return "Command:";
     }
 
     private long lastShowTime = System.currentTimeMillis();
@@ -84,7 +84,6 @@ public class EditableAttachCommand extends AttachCommand {
         if (paused || disposable == null || disposable.isDisposed()) {
             return true;
         }
-        display.clear();
         LinkedList<AttributedString> header = new LinkedList<>();
         LinkedList<AttributedString> body = new LinkedList<>();
         LinkedList<AttributedString> footer = new LinkedList<>();
@@ -132,6 +131,9 @@ public class EditableAttachCommand extends AttachCommand {
 
         header.addAll(body);
         header.addAll(footer);
+
+        display.clear();
+
         display.update(header, 0, true);
 
         return true;
@@ -174,6 +176,7 @@ public class EditableAttachCommand extends AttachCommand {
     @Override
     protected boolean doOn(Operation operation) {
         super.doOn(operation);
+        //  display.clear();
         paused = false;
         mouseEvent = null;
         if (operation instanceof EditorOperation) {

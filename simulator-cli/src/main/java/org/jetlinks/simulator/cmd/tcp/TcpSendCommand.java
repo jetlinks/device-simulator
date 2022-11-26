@@ -11,14 +11,14 @@ import picocli.CommandLine;
 import java.time.Duration;
 import java.util.Iterator;
 
-@CommandLine.Command(name = "send", description = "发送TCP指令")
+@CommandLine.Command(name = "send", description = "Send TCP Packet")
 public class TcpSendCommand extends AbstractCommand implements Runnable {
 
     @CommandLine.Option(names = {"--id"}, required = true, description = "ID", completionCandidates = IdComplete.class)
     String id;
 
 
-    @CommandLine.Parameters(arity = "1", description = "0x开头为16进制")
+    @CommandLine.Parameters(arity = "1", description = "e.g. HEX format: 0x0F")
     String payload;
 
     static class IdComplete implements Iterable<String> {

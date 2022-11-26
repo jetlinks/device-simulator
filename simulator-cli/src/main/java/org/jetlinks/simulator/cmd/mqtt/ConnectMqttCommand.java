@@ -11,7 +11,7 @@ import java.util.StringJoiner;
 
 @CommandLine.Command(name = "connect",
         showDefaultValues = true,
-        description = "创建MQTT连接",
+        description = "Create new mqtt connection",
         headerHeading = "%n", sortOptions = false)
 class ConnectMqttCommand extends AbstractCommand implements Runnable {
 

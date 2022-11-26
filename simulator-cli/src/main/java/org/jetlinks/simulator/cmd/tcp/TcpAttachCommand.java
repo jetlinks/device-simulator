@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-@CommandLine.Command(name = "attach", description = "监听tcp连接")
+@CommandLine.Command(name = "attach", description = "attach TCP connection")
 public class TcpAttachCommand extends ConnectionAttachCommand {
 
     @Override

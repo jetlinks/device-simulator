@@ -17,8 +17,7 @@ import java.util.Collections;
 @CommandLine.Command(name = "tcp",
         showDefaultValues = true,
         description = {
-                "tcp 压力测试,用于批量创建tcp连接",
-                "id 支持使用表达式动态生成,如: mqtt-test-\\${index\\}"
+                "Create TCP Benchmark"
         },
         headerHeading = "%n", sortOptions = false)
 class TcpBenchMark extends AbstractBenchmarkCommand implements Runnable {

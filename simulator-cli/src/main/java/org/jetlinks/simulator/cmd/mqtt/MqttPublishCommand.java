@@ -12,7 +12,7 @@ import picocli.CommandLine;
 import java.time.Duration;
 import java.util.Iterator;
 
-@CommandLine.Command(name = "publish", description = "推送MQTT消息")
+@CommandLine.Command(name = "publish", description = "Publish mqtt message")
 public class MqttPublishCommand extends AbstractCommand implements Runnable {
 
     @CommandLine.Option(names = {"-c", "--clientId"}, required = true, description = "clientId", completionCandidates = IdComplete.class)
@@ -25,7 +25,7 @@ public class MqttPublishCommand extends AbstractCommand implements Runnable {
     @CommandLine.Option(names = {"-q", "--qos"}, description = "QoS Level", defaultValue = "0")
     int qos;
 
-    @CommandLine.Parameters(arity = "1",description = "0x开头为16进制")
+    @CommandLine.Parameters(arity = "1", description = "0x开头为16进制")
     String payload;
 
     static class IdComplete implements Iterable<String> {

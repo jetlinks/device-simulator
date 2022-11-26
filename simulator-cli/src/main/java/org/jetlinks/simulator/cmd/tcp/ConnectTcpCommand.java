@@ -13,7 +13,7 @@ import java.time.Duration;
 
 @CommandLine.Command(name = "connect",
         showDefaultValues = true,
-        description = "创建Tcp连接",
+        description = "Create new TCP connection",
         headerHeading = "%n", sortOptions = false)
 class ConnectTcpCommand extends AbstractCommand implements Runnable {
 
