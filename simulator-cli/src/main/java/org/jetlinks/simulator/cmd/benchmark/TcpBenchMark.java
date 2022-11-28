@@ -3,15 +3,11 @@ package org.jetlinks.simulator.cmd.benchmark;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.Global;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
-import org.jetlinks.simulator.core.network.mqtt.MqttClient;
-import org.jetlinks.simulator.core.network.mqtt.MqttOptions;
 import org.jetlinks.simulator.core.network.tcp.TcpClient;
 import org.jetlinks.simulator.core.network.tcp.TcpOptions;
 import picocli.CommandLine;
 import reactor.core.publisher.Mono;
 
-import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Collections;
 
 @CommandLine.Command(name = "tcp",
@@ -40,15 +36,7 @@ class TcpBenchMark extends AbstractBenchmarkCommand implements Runnable {
     static class TCPCommandOptions extends TcpOptions {
 
         @Override
-        public String getId() {
-            if (super.getId() == null) {
-                setId("tcp-client-${index}");
-            }
-            return super.getId();
-        }
-
-        @Override
-        @CommandLine.Option(names = {"--id"}, description = "ID", order = 1)
+        @CommandLine.Option(names = {"--id"}, description = "ID", defaultValue = "tcp-client-{index}", order = 1)
         public void setId(String id) {
             super.setId(id);
         }

@@ -28,9 +28,17 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
                     .connect(Global.vertx(), command)
                     .block(Duration.ofSeconds(10));
 
-            main().connectionManager().addConnection(client);
 
-            printf(" success!%n");
+            if (client != null) {
+                main().connectionManager().addConnection(client);
+                printf(" success!%n");
+                main()
+                        .getCommandLine()
+                        .execute("tcp", "attach", client.getId());
+            }else {
+                printfError(" error!%n");
+            }
+
         } catch (Throwable err) {
             printfError(" error: %s %n", ExceptionUtils.getErrorMessage(err));
         }
@@ -52,7 +60,7 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
         }
 
         @Override
-        @CommandLine.Option(names = {"-p", "--port"}, description = "port", order = 3)
+        @CommandLine.Option(names = {"-p", "--port"}, description = "port", order = 3,required = true)
         public void setPort(int port) {
             super.setPort(port);
         }

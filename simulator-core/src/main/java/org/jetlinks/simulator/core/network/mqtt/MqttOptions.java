@@ -40,7 +40,7 @@ public class MqttOptions {
 
     private MqttOptions apply(Map<String, Object> args) {
         for (Map.Entry<String, Object> entry : args.entrySet()) {
-            String key = "${" + entry.getKey() + "}";
+            String key = "{" + entry.getKey() + "}";
             String value = String.valueOf(entry.getValue());
 
             clientId = clientId.replace(key, value);

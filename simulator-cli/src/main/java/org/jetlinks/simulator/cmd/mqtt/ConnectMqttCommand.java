@@ -3,6 +3,7 @@ package org.jetlinks.simulator.cmd.mqtt;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
+import org.springframework.util.CollectionUtils;
 import picocli.CommandLine;
 
 import java.net.InetSocketAddress;
@@ -28,11 +29,9 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
             if (client != null) {
                 main().connectionManager().addConnection(client);
                 printf(" success!%n");
-                if (command.topics != null) {
-                    main()
-                            .getCommandLine()
-                            .execute("mqtt", "attach", "--clientId=" + client.getId(), "--topics=" + String.join(",", command.topics));
-                }
+                main()
+                        .getCommandLine()
+                        .execute("mqtt", "attach", client.getId());
 
             } else {
                 printf(" error:%n");

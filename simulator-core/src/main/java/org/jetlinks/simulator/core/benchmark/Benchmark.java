@@ -57,6 +57,8 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     private final Disposable.Composite disposable = Disposables.composite();
 
+    private Disposable.Composite reloadable = Disposables.composite();
+
     private final Set<String> errors = ConcurrentHashMap.newKeySet();
 
     private final Deque<String> logs = new ConcurrentLinkedDeque<>();
@@ -115,11 +117,39 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         );
     }
 
+    public void reload() {
+        beforeConnectHandler.clear();
+        completeHandler.clear();
+        connectionHandler.clear();
+
+        reloadable.dispose();
+        reloadable = Disposables.composite();
+
+        if (options.getFile() != null) {
+            executeScript(Paths.get(options.getFile().toURI()));
+        }
+
+        getConnectionManager()
+                .getConnections()
+                .filter(Connection::isAlive)
+                .subscribe(this::fireConnectionListener);
+
+        for (Runnable runnable : completeHandler) {
+            runnable.run();
+        }
+
+    }
+
     private void handleConnected(Connection connection) {
 
         connectionManager
                 .addConnection(connection);
 
+        fireConnectionListener(connection);
+
+    }
+
+    private void fireConnectionListener(Connection connection) {
         for (Consumer<Connection> consumer : connectionHandler) {
             try {
                 consumer.accept(connection);
@@ -224,9 +254,9 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                         }))
                 .subscribe();
 
-        disposable.add(interval);
+        reloadable.add(interval);
         return () -> {
-            disposable.remove(interval);
+            reloadable.remove(interval);
             interval.dispose();
         };
     }
@@ -260,6 +290,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     @Override
     public void dispose() {
+        reloadable.dispose();
         disposable.dispose();
     }
 
@@ -281,6 +312,12 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         public void beforeConnect(Object context) {
             handleBeforeConnect(index, context);
         }
+    }
+
+    public void clear() {
+        logs.clear();
+        errors.clear();
+        lastError = null;
     }
 
     public void print(String log, Object... args) {

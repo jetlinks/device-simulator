@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
         headerHeading = "%n")
 public class BenchmarkListCommand extends ListConnection {
 
-    @CommandLine.Option(names = {"--name"})
+    @CommandLine.Option(names = {"--name"},completionCandidates = BenchmarkCommand.NameComplete.class)
     private String name;
 
     @Override

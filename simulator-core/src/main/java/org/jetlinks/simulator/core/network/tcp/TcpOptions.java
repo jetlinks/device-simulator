@@ -51,7 +51,9 @@ public class TcpOptions extends NetClientOptions {
             AtomicReference<Buffer> current = new AtomicReference<>();
 
             Function<Buffer, Integer> fieldReader;
-            if (len == 2) {
+            if (len == 1) {
+                fieldReader = buf -> (int) buf.getUnsignedByte(offset);
+            } else if (len == 2) {
                 fieldReader = buf -> buf.getUnsignedShort(offset);
             } else if (len == 3) {
                 fieldReader = buf -> buf.getMedium(offset);
@@ -67,7 +69,7 @@ public class TcpOptions extends NetClientOptions {
                     int next = fieldReader.apply(buff);
                     temp.fixedSizeMode(next);
                 } else {
-                    temp.fixedSizeMode(len+offset);
+                    temp.fixedSizeMode(len + offset);
                     Buffer buffer = current.getAndSet(null);
                     handler.accept(buffer.appendBuffer(buff));
                 }

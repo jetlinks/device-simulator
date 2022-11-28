@@ -193,7 +193,7 @@ public abstract class FullScreenCommand extends CommonCommand {
 
     static final ThreadLocal<AttributedStringBuilder> LINE_BUILDER = ThreadLocal.withInitial(AttributedStringBuilder::new);
 
-    protected AttributedString createLine(Consumer<AttributedStringBuilder> consumer) {
+    public static AttributedString createLine(Consumer<AttributedStringBuilder> consumer) {
         AttributedStringBuilder builder = LINE_BUILDER.get();
         try {
             consumer.accept(builder);

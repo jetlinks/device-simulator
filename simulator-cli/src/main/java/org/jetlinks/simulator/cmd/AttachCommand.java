@@ -1,17 +1,35 @@
 package org.jetlinks.simulator.cmd;
 
+import lombok.SneakyThrows;
+import org.jetlinks.simulator.history.CommandHistory;
+import org.jline.builtins.Commands;
+import org.jline.builtins.Completers;
+import org.jline.console.SystemRegistry;
+import org.jline.console.impl.SystemRegistryImpl;
 import org.jline.keymap.KeyMap;
+import org.jline.reader.*;
+import org.jline.reader.impl.CompletionMatcherImpl;
+import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.LineReaderImpl;
+import org.jline.reader.impl.completer.AggregateCompleter;
+import org.jline.reader.impl.completer.SystemCompleter;
 import org.jline.terminal.MouseEvent;
 import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
+import org.springframework.util.StringUtils;
+import picocli.AutoComplete;
 import picocli.CommandLine;
+import picocli.shell.jline3.PicocliCommands;
+import picocli.shell.jline3.PicocliJLineCompleter;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.key;
@@ -25,7 +43,7 @@ public class AttachCommand extends FullScreenCommand {
             .background(AttributedStyle.WHITE).foreground(AttributedStyle.BLACK);
 
     protected static final AttributedStyle black = AttributedStyle.BOLD.background(AttributedStyle.BLACK);
-
+    static Parser parser = new DefaultParser();
     protected StringBuilder editBuffer;
 
     private int curPos;
@@ -37,11 +55,14 @@ public class AttachCommand extends FullScreenCommand {
 
     private MouseEvent mouseEvent;
 
-    private List<AttributedString> currentFooter;
-
     private boolean windowsTerminal;
 
     private LinkedList<AttributedString> lastLines;
+    private final List<AttributedString> footers = new ArrayList<>();
+
+    private final StringWriter error = new StringWriter();
+    private final StringWriter info = new StringWriter();
+
 
     @Override
     protected void destroy() {
@@ -50,19 +71,29 @@ public class AttachCommand extends FullScreenCommand {
     }
 
     @Override
+    protected final void printf(String template, Object... args) {
+        info.append(String.format(template, args));
+    }
+
+    @Override
+    protected final void printfError(String template, Object... args) {
+        error.append(createLine(b -> b.append(String.format(template, args), red)).toString());
+    }
+
+    @Override
     protected void init() {
         this.windowsTerminal = terminal.getClass().getSimpleName().endsWith("WinSysTerminal");
         editBuffer = new StringBuilder();
+
+        error.getBuffer().setLength(0);
+        info.getBuffer().setLength(0);
+
+        footers.clear();
         curPos = 0;
         current = null;
         curIndex = 0;
         paused = false;
         terminal.trackMouse(Terminal.MouseTracking.Button);
-//        setFooter(Collections.singletonList(
-//                createLine(builder -> {
-//                    builder.append("Ctrl+c exit.", green);
-//                })
-//        ));
     }
 
 
@@ -75,27 +106,30 @@ public class AttachCommand extends FullScreenCommand {
 
     }
 
-    protected void setFooter(List<AttributedString> footer) {
-        this.currentFooter = footer;
+    protected void createFooter(List<AttributedString> lines) {
+        lines.addAll(footers);
+
+        if (info.getBuffer().length() > 0) {
+            for (String line : info.toString().split("\n")) {
+                lines.add(AttributedString.fromAnsi(line));
+            }
+        }
+        if (error.getBuffer().length() > 0) {
+            for (String line : error.toString().split("\n")) {
+                lines.add(AttributedString.fromAnsi(line));
+            }
+        }
     }
 
+    protected AbstractCommand createCommand() {
+        return null;
+    }
 
     protected String inputHelp() {
         return "Command:";
     }
 
     private long lastShowTime = System.currentTimeMillis();
-
-    protected boolean showCursor() {
-        if(windowsTerminal){
-            return true;
-        }
-        if (System.currentTimeMillis() - lastShowTime >= 500) {
-            lastShowTime = System.currentTimeMillis();
-            return true;
-        }
-        return false;
-    }
 
 
     @Override
@@ -134,9 +168,7 @@ public class AttachCommand extends FullScreenCommand {
         });
         footer.add(input);
 
-        if (currentFooter != null) {
-            footer.addAll(currentFooter);
-        }
+        createFooter(footer);
 
         while (footer.size() < 3) {
             footer.add(createLine(builder -> builder.append("")));
@@ -146,7 +178,11 @@ public class AttachCommand extends FullScreenCommand {
 
         while (body.size() != bodyAliveHeight) {
             if (body.size() > bodyAliveHeight) {
-                body.removeFirst();
+                if (body.size() > 0) {
+                    body.removeFirst();
+                } else {
+                    break;
+                }
             } else {
                 body.add(createLine(builder -> builder.append("")));
             }
@@ -155,13 +191,31 @@ public class AttachCommand extends FullScreenCommand {
         header.addAll(body);
         header.addAll(footer);
 
-        if (windowsTerminal && !Objects.equals(header, lastLines)) {
+        if (needFlush(header)) {
             display.clear();
         }
         lastLines = header;
         display.update(header, 0, true);
 
         return true;
+    }
+
+    protected boolean showCursor() {
+        return true;
+//        if (windowsTerminal) {
+//            return true;
+//        }
+//        if (System.currentTimeMillis() - lastShowTime >= 500) {
+//            lastShowTime = System.currentTimeMillis();
+//            return true;
+//        }
+//        return false;
+    }
+
+    protected boolean needFlush(LinkedList<AttributedString> lines) {
+        List<AttributedString> temp = this.lastLines;
+        this.lastLines = lines;
+        return windowsTerminal && !Objects.equals(lines, temp);
     }
 
     @Override
@@ -199,7 +253,7 @@ public class AttachCommand extends FullScreenCommand {
     }
 
     @Override
-    protected boolean doOn(Operation operation) {
+    protected final boolean doOn(Operation operation) {
         super.doOn(operation);
         paused = false;
         mouseEvent = null;
@@ -208,6 +262,17 @@ public class AttachCommand extends FullScreenCommand {
             switch (opt) {
                 case EXECUTE:
                     return execute();
+                case TAP:
+                    complete();
+                    break;
+                case UP:
+                    history().previous();
+                    showHistory();
+                    break;
+                case DOWN:
+                    history().next();
+                    showHistory();
+                    break;
                 case MOUSE_EVENT:
                     // paused = true;
                     mouseEvent = terminal.readMouseEvent();
@@ -223,23 +288,169 @@ public class AttachCommand extends FullScreenCommand {
 
     }
 
+    private void showHistory() {
+        String history = history().current();
+        if (StringUtils.hasText(history)) {
+            editBuffer.setLength(0);
+            editBuffer.append(history);
+            curPos = editBuffer.length();
+        }
+    }
+
     private boolean execute() {
-
-
         String command = editBuffer.toString().trim();
         switch (command) {
             case "q:":
             case "exit":
-
                 return false;
             case "clear":
+                doClear();
+                clearFooter();
                 display.clear();
                 break;
+            default:
+                if (executeCommand(command)) {
+                    history().add(command);
+                    break;
+                }
+                return true;
         }
 
         editBuffer.setLength(0);
         curPos = 0;
         return true;
+    }
+
+    protected History history() {
+        return CommandHistory.getHistory(spec.qualifiedName("_"));
+    }
+
+    protected void doClear() {
+
+    }
+
+
+    private void clearFooter() {
+        footers.clear();
+        error.getBuffer().setLength(0);
+        info.getBuffer().setLength(0);
+    }
+
+    @SneakyThrows
+    private void complete() {
+        clearFooter();
+
+        String buffer = editBuffer.toString();
+        CommandLine commandLine = commandLine();
+
+        if (null != commandLine) {
+
+//            PicocliCommands commands = new PicocliCommands(commandLine);
+
+            List<Candidate> candidates = new ArrayList<>();
+
+//            SystemCompleter completer = commands.compileCompleters();
+//            completer.compile();
+
+            ParsedLine line = parser.parse(buffer, curPos);
+
+            new AggregateCompleter(new PicocliJLineCompleter(commandLine.getCommandSpec()),
+                                   new Completers.FileNameCompleter())
+                    .complete(new LineReaderImpl(terminal), line, candidates);
+
+            String word = line.word();
+
+            candidates = candidates
+                    .stream()
+                    .filter(candidate -> matchComplete(candidate, word))
+                    .collect(Collectors.toList());
+
+            if (candidates.size() == 1) {
+                List<String> w = new ArrayList<>(line.words());
+
+                String candidate = candidates.get(0).value();
+
+                if (candidate.startsWith(word)) {
+                    w.set(w.size() - 1, candidate);
+                } else {
+                    String[] arr = word.split("=");
+                    if (arr.length == 2) {
+                        arr[1] = candidate;
+                        w.set(w.size() - 1, String.join("=", arr));
+                    }
+                }
+
+                String val = String.join(" ", w);
+
+                editBuffer.replace(0, curPos, val);
+
+                curPos = val.length();
+            } else if (candidates.size() > 1) {
+
+                showComplete(candidates);
+            }
+        }
+    }
+
+    private boolean matchComplete(Candidate candidate, String word) {
+        String[] arg = word.split("=");
+        if (arg.length == 2) {
+            word = arg[1];
+        }
+        return candidate.value().contains(word);
+    }
+
+    protected void showComplete(List<Candidate> candidates) {
+
+
+        createLine(builder -> {
+            for (Candidate candidate : candidates) {
+                String word = candidate.value();
+
+                if (builder.columnLength() >= terminal.getWidth() - word.length()) {
+                    footers.add(builder.toAttributedString());
+                    builder.setLength(0);
+                }
+                builder.append(candidate.value(), blue)
+                       .append("\t");
+            }
+
+            if (builder.length() > 0) {
+                footers.add(builder.toAttributedString());
+            }
+        });
+
+
+    }
+
+    private CommandLine commandLine() {
+        AbstractCommand commands = createCommand();
+        if (commands == null) {
+            return null;
+        }
+        commands.setParent(this);
+
+        CommandLine commandLine = new CommandLine(commands);
+        commandLine.setErr(new PrintWriter(error));
+        commandLine.setOut(new PrintWriter(info));
+
+        return commandLine;
+    }
+
+    protected final boolean executeCommand(String command) {
+        clearFooter();
+
+        CommandLine commandLine = commandLine();
+        if (commandLine == null) {
+            footers.add(AttributedString.fromAnsi("unsupported command:" + command));
+            return false;
+        }
+        ParsedLine line = parser.parse(command, command.length());
+
+        int state = commandLine.execute(line.words().toArray(new String[0]));
+
+
+        return error.getBuffer().length() == 0;
     }
 
     private int editInputBuffer(EditorOperation operation, int curPos) {

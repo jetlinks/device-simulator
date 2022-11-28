@@ -35,6 +35,13 @@ public class ConnectionAttachCommand extends AttachCommand {
     @Override
     protected final void destroy() {
         disposable.dispose();
+        doDestroy();
+    }
+
+    @Override
+    protected void doClear() {
+        super.doClear();
+        messages.clear();
     }
 
     @Override
@@ -56,6 +63,9 @@ public class ConnectionAttachCommand extends AttachCommand {
         doInit();
     }
 
+    protected void doDestroy(){
+
+    }
     protected void doInit() {
 
     }

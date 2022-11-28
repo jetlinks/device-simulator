@@ -1,7 +1,9 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.cmd.CommonCommand;
 import org.jetlinks.simulator.cmd.AttachCommand;
+import org.jetlinks.simulator.cmd.mqtt.MqttAttachCommand;
 import org.jetlinks.simulator.core.ConnectionManager;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
@@ -13,10 +15,7 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @CommandLine.Command(name = "benchmark",
@@ -51,6 +50,14 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         showHelp();
     }
 
+    static class NameComplete implements Iterable<String> {
+
+        @Override
+        public Iterator<String> iterator() {
+            return allBenchMark.keySet().iterator();
+        }
+    }
+
     @CommandLine.Command(name = "stats",
             description = "Show Benchmark stats",
             headerHeading = "%n")
@@ -60,6 +67,16 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         private String name;
 
         private Collection<Benchmark> benchmarks;
+
+        @Override
+        protected void doClear() {
+            super.doClear();
+            if (benchmarks != null) {
+                for (Benchmark benchmark : benchmarks) {
+                    benchmark.clear();
+                }
+            }
+        }
 
         @Override
         protected void init() {
@@ -150,6 +167,67 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                 }
             }
 
+        }
+
+        @Override
+        protected AbstractCommand createCommand() {
+            return new AttachCommands();
+        }
+
+        @CommandLine.Command(name = "",
+                subcommands = {
+                        ReloadCommand.class,
+                        Stop.class
+                },
+                customSynopsis = {""},
+                synopsisHeading = "")
+        class AttachCommands extends CommonCommand {
+
+            void reload(ReloadCommand command) {
+                for (Benchmark benchmark : benchmarks) {
+                    if (command.file != null && command.file.isFile() && command.file.exists()) {
+                        benchmark.getOptions().setFile(command.file);
+                    }
+                    if (command.scriptArgs != null) {
+                        benchmark.getOptions().setScriptArgs(command.scriptArgs);
+                    }
+                    try {
+                        benchmark.reload();
+                    } catch (Throwable err) {
+                        printfError("reload error:%s%n", ExceptionUtils.getErrorMessage(err));
+                    }
+                }
+            }
+
+            void stop() {
+                for (Benchmark benchmark : benchmarks) {
+                    benchmark.dispose();
+                }
+            }
+
+        }
+
+        @CommandLine.Command(name = "reload")
+        static class ReloadCommand extends CommonCommand {
+
+            @CommandLine.Option(names = {"--script"}, description = "Script File", order = 1)
+            private File file;
+
+            @CommandLine.Parameters(paramLabel = "Script arguments")
+            Map<String, Object> scriptArgs;
+
+            @Override
+            public void run() {
+                ((AttachCommands) parent).reload(this);
+            }
+        }
+
+        @CommandLine.Command(name = "stop")
+        static class Stop extends CommonCommand {
+            @Override
+            public void run() {
+                ((AttachCommands) parent).stop();
+            }
         }
 
     }

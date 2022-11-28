@@ -13,6 +13,7 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
     @CommandLine.Mixin
     protected BenchmarkCommand.Options options;
 
+    protected Benchmark benchmark;
 
     protected String getDefaultName() {
         return spec.name();
@@ -24,14 +25,9 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
     public final void run() {
         String name = options.getName() == null ? getDefaultName() : options.getName();
 
-//        printf("start benchmark %s, index %d,size %d.args:%s %n ",
-//               name,
-//               options.getIndex(),
-//               options.getSize(),
-//               options.getScriptArgs()==null?"":String.valueOf(options.getScriptArgs()));
         DefaultConnectionManager connectionManager = new DefaultConnectionManager();
 
-        Benchmark benchmark = Benchmark.create(
+        benchmark = Benchmark.create(
                 name,
                 options,
                 connectionManager,
@@ -41,6 +37,10 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
         BenchmarkCommand.addBenchmark(benchmark);
         benchmark.start();
         benchmark.doOnDispose(connectionManager);
-        main().getCommandLine().execute("benchmark", "stats", "--name=" + name);
+        doAfter();
+    }
+
+    protected void doAfter() {
+        main().getCommandLine().execute("benchmark", "stats", "--name=" + benchmark.getName());
     }
 }

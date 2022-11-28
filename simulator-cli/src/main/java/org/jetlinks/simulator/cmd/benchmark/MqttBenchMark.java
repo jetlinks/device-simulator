@@ -51,7 +51,7 @@ class MqttBenchMark extends AbstractBenchmarkCommand implements Runnable {
         @CommandLine.Option(names = {"-c", "--clientId"},
                 description = "clientId template",
                 order = 3,
-                defaultValue = "mqtt-simulator-\\$\\{index\\}",
+                defaultValue = "mqtt-simulator-{index}",
                 required = true)
         public void setClientId(String clientId) {
             super.setClientId(clientId);

@@ -1,5 +1,7 @@
 package org.jetlinks.simulator.cmd.mqtt;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.core.Connection;
@@ -13,10 +15,16 @@ import java.time.Duration;
 import java.util.Iterator;
 
 @CommandLine.Command(name = "publish", description = "Publish mqtt message")
+@Getter
+@Setter
 public class MqttPublishCommand extends AbstractCommand implements Runnable {
 
-    @CommandLine.Option(names = {"-c", "--clientId"}, required = true, description = "clientId", completionCandidates = IdComplete.class)
     String clientId;
+
+    @CommandLine.Option(names = {"-c", "--clientId"}, required = true, description = "clientId", completionCandidates = IdComplete.class)
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
 
     @CommandLine.Option(names = {"-t", "--topic"}, required = true, description = "mqtt topic")
     String topic;
