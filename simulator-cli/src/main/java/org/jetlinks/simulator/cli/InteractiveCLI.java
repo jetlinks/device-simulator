@@ -71,7 +71,7 @@ public class InteractiveCLI {
                                                   new PicocliJLineCompleter(commandLine.getCommandSpec()),
                                                   new Completers.FileNameCompleter()))
                 .parser(parser)
-                .variable(LineReader.HISTORY_FILE, "simulator-cli-history")
+                .variable(LineReader.HISTORY_FILE, "history/simulator-cli-history")
                 .variable(LineReader.HISTORY_IGNORE,"help|cls|clear|exit")
                 .variable(LineReader.LIST_MAX, 50)   // max tab completion candidates
                 .build();

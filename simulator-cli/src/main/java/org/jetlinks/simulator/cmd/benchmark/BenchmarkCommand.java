@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
@@ -115,8 +116,6 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                    .append(benchmark.getName(), green)
                                    .append(") size: ")
                                    .append(String.valueOf(benchmark.getOptions().getSize()), green)
-                                   .append(" completed: ")
-                                   .append(String.valueOf(Math.abs(connection.getTotal() - connection.getExecuting())), green)
                                    .append(" connecting: ")
                                    .append(lastQps == null ? "0" : String.valueOf(lastQps
                                                                                           .getSummary()
@@ -146,12 +145,12 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                         createLine(builder -> {
                             ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
                             if (summary != null) {
-                                builder.append("               ");
+                                builder.append("                ");
 
                                 if (benchmark.isDisposed()) {
                                     builder.append("stopped", red);
                                 } else {
-                                    builder.append(" alive: ").append(String.valueOf(summary.getConnected()), green);
+                                    builder.append("alive: ").append(String.valueOf(summary.getConnected()), green);
                                 }
 
                                 if (lastQps != null) {

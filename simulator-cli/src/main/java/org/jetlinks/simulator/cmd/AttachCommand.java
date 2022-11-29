@@ -19,6 +19,7 @@ import picocli.CommandLine;
 import picocli.shell.jline3.PicocliJLineCompleter;
 import reactor.core.Disposable;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.*;
@@ -69,6 +70,11 @@ public class AttachCommand extends FullScreenCommand {
         errors.clear();
         logDispose = null;
         lastLines = null;
+        try {
+            history().save();
+        } catch (IOException ignore) {
+
+        }
     }
 
     @Override
