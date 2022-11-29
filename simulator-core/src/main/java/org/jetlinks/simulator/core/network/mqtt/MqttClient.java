@@ -221,7 +221,7 @@ public class MqttClient extends AbstractConnection {
     public Mono<Void> publishAsync(String topic, int qos, ByteBuf payload) {
         Buffer buffer = Buffer.buffer(payload);
         int len = buffer.length();
-        return Mono.create(sink -> client
+        return Mono.<Void>create(sink -> client
                 .publish(topic,
                          buffer,
                          MqttQoS.valueOf(qos),
@@ -235,7 +235,8 @@ public class MqttClient extends AbstractConnection {
                              } else {
                                  sink.success();
                              }
-                         }));
+                         }))
+                   .doOnError(this::error);
     }
 
     public List<Subscriber> getSubscriptions() {

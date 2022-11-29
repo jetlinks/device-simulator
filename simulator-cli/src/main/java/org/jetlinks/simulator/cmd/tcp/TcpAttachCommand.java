@@ -49,20 +49,14 @@ public class TcpAttachCommand extends ConnectionAttachCommand {
     class AttachCommands extends CommonCommand {
 
         void send(Send send) {
-            Connection connection = main().connectionManager().getConnection(getId()).blockOptional().orElse(null);
-
-            if (null != connection) {
-                TcpClient client = connection.unwrap(TcpClient.class);
-                try {
-                    printf("sending ");
-                    client.sendAsync(send.payload)
-                          .block(Duration.ofSeconds(10));
-                    printf("success!%n");
-                } catch (Throwable e) {
-                    printfError("error:%s%n", ExceptionUtils.getErrorMessage(e));
-                }
-            } else {
-                printfError("error: Not Found %n");
+            TcpClient client = connection.unwrap(TcpClient.class);
+            try {
+                printf("sending ");
+                client.sendAsync(send.payload)
+                      .block(Duration.ofSeconds(10));
+                printf("success!%n");
+            } catch (Throwable e) {
+                printfError("error:%s%n", ExceptionUtils.getErrorMessage(e));
             }
         }
 

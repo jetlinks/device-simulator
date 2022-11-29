@@ -7,11 +7,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public abstract class AbstractConnection implements Connection {
 
-    private volatile State state = State.connection;
+    private volatile State state = State.connecting;
     private List<BiConsumer<State, State>> listener;
     private final long connectTime = System.currentTimeMillis();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
@@ -52,6 +51,14 @@ public abstract class AbstractConnection implements Connection {
 
             return old == null ? value : computer.apply(value, (T) old);
         });
+    }
+
+    protected void incr(String key) {
+        computeAttr(key, 1, Math::addExact);
+    }
+
+    protected void error(Throwable throwable) {
+        incr(Connection.statusCountAttr("ERROR"));
     }
 
     protected void sent(int bytesLength) {

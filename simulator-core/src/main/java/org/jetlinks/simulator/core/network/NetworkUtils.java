@@ -2,12 +2,16 @@ package org.jetlinks.simulator.core.network;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.EmptyByteBuf;
 import io.netty.buffer.Unpooled;
 
 public class NetworkUtils {
 
 
     public static ByteBuf castToByteBuf(Object buf) {
+        if (buf == null) {
+            return Unpooled.EMPTY_BUFFER;
+        }
         if (buf instanceof ByteBuf) {
             return ((ByteBuf) buf);
         }

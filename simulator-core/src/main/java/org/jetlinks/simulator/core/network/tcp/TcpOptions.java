@@ -102,7 +102,7 @@ public class TcpOptions extends NetClientOptions {
             return this;
         }
         for (Map.Entry<String, Object> entry : args.entrySet()) {
-            String key = "${" + entry.getKey() + "}";
+            String key = "{" + entry.getKey() + "}";
             String value = String.valueOf(entry.getValue());
 
             id = id.replace(key, value);

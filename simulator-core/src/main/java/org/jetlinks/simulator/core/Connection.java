@@ -1,14 +1,18 @@
 package org.jetlinks.simulator.core;
 
+import com.google.common.collect.Maps;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import org.jetlinks.reactor.ql.utils.CastUtils;
 import org.jetlinks.simulator.core.network.NetworkType;
+import org.jetlinks.simulator.core.network.NetworkUtils;
+import org.springframework.http.HttpStatus;
 import reactor.core.Disposable;
-import reactor.util.function.Tuple2;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 public interface Connection extends Disposable {
 
@@ -21,6 +25,14 @@ public interface Connection extends Disposable {
 
     String ATTR_RECEIVE_BYTES = "received_bytes";
 
+    static String statusCountAttr(String status) {
+        return "status_" + status;
+    }
+
+    default Map<String, Integer> statusCount() {
+        return Maps.transformValues(Maps.filterKeys(attributes(), k -> k.startsWith("status_")),
+                                    v -> CastUtils.castNumber(v).intValue());
+    }
 
     String getId();
 
@@ -50,8 +62,17 @@ public interface Connection extends Disposable {
         return type.isInstance(this);
     }
 
+    default ByteBuf newBuffer() {
+        return Unpooled.buffer();
+    }
+
+    default String toHex(Object data) {
+        return ByteBufUtil.hexDump(NetworkUtils.castToByteBuf(data));
+    }
+
+
     enum State {
-        connection,
+        connecting,
         connected,
         closed,
         error;

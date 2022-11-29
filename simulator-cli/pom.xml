@@ -112,12 +112,12 @@
 
     <dependencies>
 
-        <dependency>
-            <groupId>info.picocli</groupId>
-            <artifactId>picocli-codegen</artifactId>
-            <version>4.7.0</version>
-            <scope>provided</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>info.picocli</groupId>-->
+<!--            <artifactId>picocli-codegen</artifactId>-->
+<!--            <version>4.7.0</version>-->
+<!--            <scope>provided</scope>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>org.jetlinks</groupId>

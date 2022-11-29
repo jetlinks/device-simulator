@@ -73,20 +73,14 @@ public class MqttAttachCommand extends ConnectionAttachCommand {
     class AttachCommands extends CommonCommand {
 
         void publish(Publish publish) {
-            Connection connection = main().connectionManager().getConnection(getId()).blockOptional().orElse(null);
-
-            if (null != connection) {
-                MqttClient client = connection.unwrap(MqttClient.class);
-                try {
-                    printf("publishing ");
-                    client.publishAsync(publish.topic, publish.qos, publish.payload)
-                          .block(Duration.ofSeconds(10));
-                    printf("success!%n");
-                } catch (Throwable e) {
-                    printfError("error:%s%n", ExceptionUtils.getErrorMessage(e));
-                }
-            } else {
-                printfError("error: Not Found %n");
+            MqttClient client = connection.unwrap(MqttClient.class);
+            try {
+                printf("publishing ");
+                client.publishAsync(publish.topic, publish.qos, publish.payload)
+                      .block(Duration.ofSeconds(10));
+                printf("success!%n");
+            } catch (Throwable e) {
+                printfError("error:%s%n", ExceptionUtils.getErrorMessage(e));
             }
         }
 

@@ -1,8 +1,10 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import org.apache.commons.collections.MapUtils;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.cmd.CommonCommand;
 import org.jetlinks.simulator.cmd.AttachCommand;
+import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.ConnectionManager;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
@@ -10,6 +12,7 @@ import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.monitor.SystemMonitor;
 import org.jetlinks.simulator.core.report.Reporter;
 import org.jline.utils.AttributedString;
+import org.jline.utils.AttributedStyle;
 import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
@@ -29,7 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
                 MqttBenchMark.class,
                 BenchmarkCommand.StatsCommand.class,
                 BenchmarkListCommand.class,
-                TcpBenchMark.class})
+                TcpBenchMark.class,
+                UDPBenchMark.class,
+                HTTPBenchMark.class
+        })
 public class BenchmarkCommand extends CommonCommand implements Runnable {
     private final static MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
@@ -137,6 +143,23 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                         .append("ms");
                             }
 
+                            double cpu = SystemMonitor.jvmCpuUsage.value();
+                            MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
+                            double heapUsage = (double) heap.getUsed() / heap.getMax();
+
+                            builder.append(" JVM CPU: ")
+                                   .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
+
+                            builder.append(" JVM Mem: ")
+                                   .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
+
+                            Throwable lastError = benchmark.getLastError();
+                            if (null != lastError) {
+                                builder.append(" Last Error: ")
+                                       .append(ExceptionUtils.getErrorMessage(lastError), red);
+
+                            }
+
                         })
                 );
 
@@ -144,6 +167,17 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                 lines.add(
                         createLine(builder -> {
                             ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
+
+                            Map<String, Integer> statusCount = benchmark
+                                    .getConnectionManager()
+                                    .getConnections()
+                                    .map(Connection::statusCount)
+                                    .reduce(new LinkedHashMap<String, Integer>(), ((a, b) -> {
+                                        b.forEach((key, v) -> a.compute(key.replace("status_", ""), (ignore, old) -> old == null ? v : v + old));
+                                        return a;
+                                    }))
+                                    .block();
+
                             if (summary != null) {
                                 builder.append("                ");
 
@@ -188,25 +222,25 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                 }
                             }
 
-                            double cpu = SystemMonitor.jvmCpuUsage.value();
-                            MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
-                            double heapUsage = (double) heap.getUsed() / heap.getMax();
-
-                            builder.append(" JVM CPU: ")
-                                   .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
-
-                            builder.append(" JVM Mem: ")
-                                   .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
-
-                            Throwable lastError = benchmark.getLastError();
-                            if (null != lastError) {
-                                builder.append(" Last Error: ")
-                                       .append(ExceptionUtils.getErrorMessage(lastError), red);
-
+                            if (MapUtils.isNotEmpty(statusCount)) {
+                                builder.append(" Status:");
+                                for (Map.Entry<String, Integer> str : statusCount.entrySet()) {
+                                    builder.append(" ");
+                                    AttributedStyle style = statusIsBad(str.getKey()) ? red : green;
+                                    builder
+                                            .append(str.getKey(), style)
+                                            .append("(")
+                                            .append(String.valueOf(str.getValue()), blue)
+                                            .append(")");
+                                }
                             }
                         })
                 );
             }
+        }
+
+        public boolean statusIsBad(String status) {
+            return !"OK".equals(status) && !"SUCCESS".equals(status);
         }
 
         @Override

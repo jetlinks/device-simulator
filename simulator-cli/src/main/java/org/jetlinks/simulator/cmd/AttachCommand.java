@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
@@ -98,7 +99,6 @@ public class AttachCommand extends FullScreenCommand {
                 }
             }
 
-
         });
         this.windowsTerminal = terminal.getClass().getSimpleName().endsWith("WinSysTerminal");
         editBuffer = new StringBuilder();
@@ -150,6 +150,29 @@ public class AttachCommand extends FullScreenCommand {
     private long lastShowTime = System.currentTimeMillis();
 
 
+    private LinkedList<AttributedString> prepare(LinkedList<AttributedString> list) {
+        int width = terminal.getWidth();
+
+        LinkedList<AttributedString> newArr = new LinkedList<>();
+
+        for (AttributedString str : list) {
+            int total = str.columnLength();
+            if (total <= width) {
+                newArr.add(str);
+                continue;
+            }
+            int offset = 0;
+
+            //自动换行
+            while (offset < total) {
+                newArr.add(str.columnSubSequence(offset, width + offset));
+                offset += width;
+            }
+
+        }
+        return newArr;
+    }
+
     @Override
     protected synchronized final boolean display() {
         if (paused || disposable == null || disposable.isDisposed()) {
@@ -192,6 +215,10 @@ public class AttachCommand extends FullScreenCommand {
             footer.add(createLine(builder -> builder.append("")));
         }
 
+        header = prepare(header);
+        body = prepare(body);
+        footer = prepare(footer);
+
         int bodyAliveHeight = terminal.getHeight() - footer.size() - header.size();
 
         while (body.size() != bodyAliveHeight) {
@@ -202,7 +229,7 @@ public class AttachCommand extends FullScreenCommand {
                     break;
                 }
             } else {
-                body.add(createLine(builder -> builder.append("")));
+                body.add(AttributedString.EMPTY);
             }
         }
 
@@ -441,7 +468,7 @@ public class AttachCommand extends FullScreenCommand {
 
     }
 
-    private CommandLine commandLine() {
+    protected CommandLine commandLine() {
         AbstractCommand commands = createCommand();
         if (commands == null) {
             return null;
