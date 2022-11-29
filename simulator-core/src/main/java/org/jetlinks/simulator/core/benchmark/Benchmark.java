@@ -2,6 +2,7 @@ package org.jetlinks.simulator.core.benchmark;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.simulator.core.Connection;
@@ -63,6 +64,9 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     private final Deque<String> logs = new ConcurrentLinkedDeque<>();
 
+    private final Deque<Snapshot> snapshots = new ConcurrentLinkedDeque<>();
+
+
     @Getter
     private Throwable lastError;
 
@@ -102,6 +106,12 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         if (options.getFile() != null) {
             executeScript(Paths.get(options.getFile().toURI()));
         }
+        disposable.add(
+                Flux.interval(Duration.ofSeconds(1))
+                    .flatMap(ignore -> this.snapshot())
+                    .subscribe()
+        );
+
         disposable.add(
                 Flux
                         .range(options.getIndex(), options.getSize())
@@ -261,6 +271,28 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         };
     }
 
+
+    public Deque<Snapshot> snapshots() {
+        return snapshots;
+    }
+
+    private Mono<Void> snapshot() {
+        return connectionManager
+                .summary()
+                .map(sum -> new Snapshot(snapshots.peekLast(), System.currentTimeMillis(), sum))
+                .doOnNext(snapshot -> {
+                    snapshots.add(snapshot);
+                    if (snapshots.size() >= 86400) {
+                        snapshots.removeFirst();
+                    }
+                })
+                .onErrorResume(err -> {
+                    error("snapshot", err);
+                    return Mono.empty();
+                })
+                .then();
+    }
+
     private void error(String operation, Throwable e) {
         lastError = e;
         if (errors.size() > 100) {
@@ -296,6 +328,28 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     public void doOnDispose(Disposable disposable) {
         this.disposable.add(disposable);
+    }
+
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class Snapshot {
+        private final Snapshot pre;
+
+        private final long timestamp;
+
+        private final ConnectionManager.Summary summary;
+
+        public Snapshot getDiff() {
+            ConnectionManager.Summary sum = summary;
+            long time = 0;
+            if (pre != null) {
+                sum = sum.sub(pre.summary);
+                time = this.timestamp - pre.timestamp;
+            }
+            return new Snapshot(null, time, sum);
+        }
     }
 
     @AllArgsConstructor

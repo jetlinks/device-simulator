@@ -56,7 +56,7 @@ public interface ConnectionManager extends Disposable {
         public Summary add(Connection connection) {
             size++;
 
-            if (connection.state()== Connection.State.connected) {
+            if (connection.state() == Connection.State.connected) {
                 connected++;
             } else {
                 closed++;
@@ -87,15 +87,27 @@ public interface ConnectionManager extends Disposable {
             return this;
         }
 
-        public Summary merge(Summary summary) {
+        public Summary sub(Summary summary) {
             Summary sum = new Summary();
-            sum.size += summary.size;
-            sum.connected += summary.connected;
-            sum.closed += summary.closed;
-            sum.sent += summary.sent;
-            sum.received += summary.received;
-            sum.sentBytes += summary.sentBytes;
-            sum.receivedBytes += summary.receivedBytes;
+            sum.size = size - summary.size;
+            sum.connected = connected - summary.connected;
+            sum.closed = closed - summary.closed;
+            sum.sent = sent - summary.sent;
+            sum.received = received - summary.received;
+            sum.sentBytes = sentBytes - summary.sentBytes;
+            sum.receivedBytes = receivedBytes - summary.receivedBytes;
+            return sum;
+        }
+
+        public Summary add(Summary summary) {
+            Summary sum = new Summary();
+            sum.size = size + summary.size;
+            sum.connected = connected + summary.connected;
+            sum.closed = closed + summary.closed;
+            sum.sent = sent + summary.sent;
+            sum.received = received + summary.received;
+            sum.sentBytes = sentBytes + summary.sentBytes;
+            sum.receivedBytes = receivedBytes + summary.receivedBytes;
             return sum;
 
         }
