@@ -39,7 +39,8 @@ class DefaultAddressManager implements AddressManager {
                 Enumeration<InetAddress> addr = it.getInetAddresses();
                 while (addr.hasMoreElements()) {
                     InetAddress address = addr.nextElement();
-                    if (address instanceof Inet4Address) {
+                    if (address instanceof Inet4Address&&
+                           !address.isLoopbackAddress()) {
                         addressRefs.add(new InetAddressRef(address, maxPorts));
                     }
                 }
