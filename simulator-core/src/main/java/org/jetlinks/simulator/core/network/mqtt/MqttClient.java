@@ -15,9 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.utils.TopicUtils;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.Global;
-import org.jetlinks.simulator.core.network.AbstractConnection;
-import org.jetlinks.simulator.core.network.NetworkType;
-import org.jetlinks.simulator.core.network.NetworkUtils;
+import org.jetlinks.simulator.core.network.*;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -35,12 +33,15 @@ import java.util.function.Consumer;
 public class MqttClient extends AbstractConnection {
     io.vertx.mqtt.MqttClient client;
 
+    Address address;
+
     private List<Consumer<MqttPublishMessage>> handlers;
 
     private final Map<Tuple2<String, Integer>, Subscriber> subscribers = new ConcurrentHashMap<>();
 
-    private MqttClient(io.vertx.mqtt.MqttClient client) {
+    private MqttClient(io.vertx.mqtt.MqttClient client, Address address) {
         this.client = client;
+        this.address = address;
         this.client
                 .publishHandler(msg -> {
                     received(msg.payload().length());
@@ -69,43 +70,47 @@ public class MqttClient extends AbstractConnection {
     public static Mono<MqttClient> connect(Vertx vertx,
                                            InetSocketAddress server,
                                            MqttOptions options) {
-        return Mono.create(sink -> {
-            MqttClientOptions clientOptions = new MqttClientOptions();
-            clientOptions.setClientId(options.getClientId());
-            clientOptions.setUsername(options.getUsername());
-            clientOptions.setPassword(options.getPassword());
-            clientOptions.setAutoKeepAlive(true);
-            clientOptions.setTcpKeepAlive(true);
-            clientOptions.setMaxMessageSize(1024 * 1024);
-            clientOptions.setReusePort(true);
+        Address localAddress = AddressManager.global().takeAddress();
 
-            io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
+        return Mono.<MqttClient>create(sink -> {
+                       MqttClientOptions clientOptions = new MqttClientOptions();
+                       clientOptions.setClientId(options.getClientId());
+                       clientOptions.setUsername(options.getUsername());
+                       clientOptions.setPassword(options.getPassword());
+                       clientOptions.setLocalAddress(localAddress.getAddress().getHostAddress());
+                       clientOptions.setAutoKeepAlive(true);
+                       clientOptions.setTcpKeepAlive(true);
+                       clientOptions.setMaxMessageSize(1024 * 1024);
+                       clientOptions.setReusePort(true);
 
-            client.connect(
-                    server.getPort(),
-                    server.getHostString(),
-                    res -> {
-                        if (res.failed()) {
-                            sink.error(res.cause());
-                            return;
-                        }
+                       io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
 
-                        MqttConnAckMessage msg = res.result();
-                        if (msg != null) {
-                            if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
-                                MqttClient mqttClient = new MqttClient(client);
-                                mqttClient.attribute("clientId", options.clientId);
-                                mqttClient.attribute("username", options.getUsername());
-                                mqttClient.changeState(State.connected);
-                                sink.success(mqttClient);
-                            } else {
-                                sink.error(new MqttConnectionException(msg.code()));
-                            }
-                        }
-                        sink.success();
+                       client.connect(
+                               server.getPort(),
+                               server.getHostString(),
+                               res -> {
+                                   if (res.failed()) {
+                                       sink.error(res.cause());
+                                       return;
+                                   }
 
-                    });
-        });
+                                   MqttConnAckMessage msg = res.result();
+                                   if (msg != null) {
+                                       if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
+                                           MqttClient mqttClient = new MqttClient(client, localAddress);
+                                           mqttClient.attribute("clientId", options.clientId);
+                                           mqttClient.attribute("username", options.getUsername());
+                                           mqttClient.changeState(State.connected);
+                                           sink.success(mqttClient);
+                                       } else {
+                                           sink.error(new MqttConnectionException(msg.code()));
+                                       }
+                                   }
+                                   sink.success();
+
+                               });
+                   })
+                   .doOnError(err -> localAddress.release());
     }
 
     @Override
@@ -233,12 +238,13 @@ public class MqttClient extends AbstractConnection {
                          }));
     }
 
-    public List<Subscriber> getSubscriptions(){
-        return  new ArrayList<>(subscribers.values());
+    public List<Subscriber> getSubscriptions() {
+        return new ArrayList<>(subscribers.values());
     }
 
     @Override
     protected void doDisposed() {
+        address.release();
         super.doDisposed();
         if (client.isConnected()) {
             client.disconnect();

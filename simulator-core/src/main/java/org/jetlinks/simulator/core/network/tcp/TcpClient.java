@@ -9,9 +9,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.simulator.core.ExceptionUtils;
-import org.jetlinks.simulator.core.network.AbstractConnection;
-import org.jetlinks.simulator.core.network.NetworkType;
-import org.jetlinks.simulator.core.network.NetworkUtils;
+import org.jetlinks.simulator.core.network.*;
 import reactor.core.publisher.Mono;
 
 import java.io.File;
@@ -27,14 +25,15 @@ public class TcpClient extends AbstractConnection {
     public static final String ATTR_ADDRESS = "address";
     private final String id;
     private final NetSocket socket;
-
+    private final Address address;
     private final List<Consumer<Buffer>> bufferHandlers = new CopyOnWriteArrayList<>();
 
     private Consumer<Buffer> parser;
 
-    public TcpClient(String id, NetSocket socket) {
+    public TcpClient(String id, NetSocket socket, Address address) {
         this.id = id;
         this.socket = socket;
+        this.address = address;
         attribute(ATTR_ADDRESS, socket.localAddress().host() + ":" + socket.localAddress().port());
 
 
@@ -59,22 +58,27 @@ public class TcpClient extends AbstractConnection {
     }
 
     public static Mono<TcpClient> connect(Vertx vertx, TcpOptions tcpOptions) {
-        return Mono.create(sink -> vertx
-                .createNetClient(tcpOptions)
-                .connect(tcpOptions.getPort(), tcpOptions.getHost())
-                .map(socket -> {
-                    try {
-                        String id = tcpOptions.getId() == null ? "tcp-client-" + count.incrementAndGet() : tcpOptions.getId();
-                        TcpClient client = new TcpClient(id, socket);
-                        client.parser = tcpOptions.createParser(client::handleBuffer);
-                        sink.success(client);
-                    } catch (Throwable e) {
-                        sink.error(e);
-                        socket.close();
-                    }
-                    return socket;
-                })
-                .onFailure(sink::error));
+        Address addr = AddressManager.global().takeAddress();
+        tcpOptions.setLocalAddress(addr.getAddress().getHostAddress());
+
+        return Mono
+                .<TcpClient>create(sink -> vertx
+                        .createNetClient(tcpOptions)
+                        .connect(tcpOptions.getPort(), tcpOptions.getHost())
+                        .map(socket -> {
+                            try {
+                                String id = tcpOptions.getId() == null ? "tcp-client-" + count.incrementAndGet() : tcpOptions.getId();
+                                TcpClient client = new TcpClient(id, socket, addr);
+                                client.parser = tcpOptions.createParser(client::handleBuffer);
+                                sink.success(client);
+                            } catch (Throwable e) {
+                                sink.error(e);
+                                socket.close();
+                            }
+                            return socket;
+                        })
+                        .onFailure(sink::error))
+                .doOnError(err -> addr.release());
     }
 
 
@@ -92,7 +96,7 @@ public class TcpClient extends AbstractConnection {
         return Unpooled.buffer();
     }
 
-    public String toHex(Object data){
+    public String toHex(Object data) {
         return ByteBufUtil.hexDump(NetworkUtils.castToByteBuf(data));
     }
 
@@ -164,5 +168,18 @@ public class TcpClient extends AbstractConnection {
     @Override
     public boolean isAlive() {
         return state() != State.closed;
+    }
+
+    @Override
+    protected void doDisposed() {
+        address.release();
+        try {
+            socket.close();
+        } catch (Throwable ignore) {
+
+        } finally {
+
+        }
+        super.doDisposed();
     }
 }

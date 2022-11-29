@@ -1,34 +1,28 @@
 package org.jetlinks.simulator.cmd;
 
 import lombok.SneakyThrows;
+import org.jetlinks.simulator.cli.TerminalAppender;
 import org.jetlinks.simulator.history.CommandHistory;
-import org.jline.builtins.Commands;
 import org.jline.builtins.Completers;
-import org.jline.console.SystemRegistry;
-import org.jline.console.impl.SystemRegistryImpl;
 import org.jline.keymap.KeyMap;
 import org.jline.reader.*;
-import org.jline.reader.impl.CompletionMatcherImpl;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.reader.impl.completer.AggregateCompleter;
-import org.jline.reader.impl.completer.SystemCompleter;
 import org.jline.terminal.MouseEvent;
 import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
 import org.springframework.util.StringUtils;
-import picocli.AutoComplete;
 import picocli.CommandLine;
-import picocli.shell.jline3.PicocliCommands;
 import picocli.shell.jline3.PicocliJLineCompleter;
+import reactor.core.Disposable;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 import static org.jline.keymap.KeyMap.ctrl;
@@ -58,15 +52,22 @@ public class AttachCommand extends FullScreenCommand {
     private boolean windowsTerminal;
 
     private LinkedList<AttributedString> lastLines;
+
+    private final Deque<AttributedString> errors = new ConcurrentLinkedDeque<>();
+
     private final List<AttributedString> footers = new ArrayList<>();
 
     private final StringWriter error = new StringWriter();
     private final StringWriter info = new StringWriter();
 
+    private Disposable logDispose;
 
     @Override
     protected void destroy() {
         super.destroy();
+        logDispose.dispose();
+        errors.clear();
+        logDispose = null;
         lastLines = null;
     }
 
@@ -82,6 +83,17 @@ public class AttachCommand extends FullScreenCommand {
 
     @Override
     protected void init() {
+        logDispose = TerminalAppender.listenLog(log -> {
+
+            for (String s : log.split("\n")) {
+                errors.add(AttributedString.fromAnsi(s));
+                if (errors.size() > 100) {
+                    errors.removeFirst();
+                }
+            }
+
+
+        });
         this.windowsTerminal = terminal.getClass().getSimpleName().endsWith("WinSysTerminal");
         editBuffer = new StringBuilder();
 
@@ -138,7 +150,7 @@ public class AttachCommand extends FullScreenCommand {
             return true;
         }
         LinkedList<AttributedString> header = new LinkedList<>();
-        LinkedList<AttributedString> body = new LinkedList<>();
+        LinkedList<AttributedString> body = new LinkedList<>(this.errors);
         LinkedList<AttributedString> footer = new LinkedList<>();
 
         createHeader(header);
@@ -326,7 +338,7 @@ public class AttachCommand extends FullScreenCommand {
     }
 
     protected void doClear() {
-
+        errors.clear();
     }
 
 

@@ -326,6 +326,11 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         disposable.dispose();
     }
 
+    @Override
+    public boolean isDisposed() {
+        return disposable.isDisposed();
+    }
+
     public void doOnDispose(Disposable disposable) {
         this.disposable.add(disposable);
     }

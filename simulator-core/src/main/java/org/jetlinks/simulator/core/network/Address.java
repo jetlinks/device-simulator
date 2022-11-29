@@ -1,10 +1,11 @@
 package org.jetlinks.simulator.core.network;
 
-import java.net.InetSocketAddress;
+
+import java.net.InetAddress;
 
 public interface Address {
 
-    InetSocketAddress getAddress();
+    InetAddress getAddress();
 
     void release();
 }

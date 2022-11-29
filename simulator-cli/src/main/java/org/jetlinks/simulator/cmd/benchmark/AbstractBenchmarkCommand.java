@@ -3,6 +3,7 @@ package org.jetlinks.simulator.cmd.benchmark;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.DefaultConnectionManager;
+import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
 import picocli.CommandLine;
@@ -31,7 +32,12 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
                 name,
                 options,
                 connectionManager,
-                this::createConnection
+                ctx -> Mono
+                        .defer(() -> this.createConnection(ctx))
+                        .onErrorResume(err -> {
+                            benchmark.print("create connection[" + ctx.index() + "] error: " + ExceptionUtils.getErrorMessage(err));
+                            return Mono.empty();
+                        })
         );
 
         BenchmarkCommand.addBenchmark(benchmark);

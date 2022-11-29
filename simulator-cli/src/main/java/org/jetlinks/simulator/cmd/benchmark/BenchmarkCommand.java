@@ -7,12 +7,16 @@ import org.jetlinks.simulator.core.ConnectionManager;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
+import org.jetlinks.simulator.core.monitor.SystemMonitor;
 import org.jetlinks.simulator.core.report.Reporter;
 import org.jline.utils.AttributedString;
 import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
                 BenchmarkListCommand.class,
                 TcpBenchMark.class})
 public class BenchmarkCommand extends CommonCommand implements Runnable {
+    private final static MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
     static Map<String, Benchmark> allBenchMark = new ConcurrentHashMap<>();
     static Map<String, Integer> benchmarkNameIndex = new ConcurrentHashMap<>();
@@ -113,7 +118,9 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                    .append(" completed: ")
                                    .append(String.valueOf(Math.abs(connection.getTotal() - connection.getExecuting())), green)
                                    .append(" connecting: ")
-                                   .append(lastQps==null?"0": String.valueOf(lastQps.getSummary().getSize()), blue)
+                                   .append(lastQps == null ? "0" : String.valueOf(lastQps
+                                                                                          .getSummary()
+                                                                                          .getSize()), green)
                                    .append("/s");
 
 
@@ -139,37 +146,40 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                         createLine(builder -> {
                             ConnectionManager.Summary summary = benchmark.getConnectionManager().summary().block();
                             if (summary != null) {
-                                builder.append("               ")
-                                       .append(" alive: ")
-                                       .append(String.valueOf(summary.getConnected()), green)
+                                builder.append("               ");
 
-                                ;
+                                if (benchmark.isDisposed()) {
+                                    builder.append("stopped", red);
+                                } else {
+                                    builder.append(" alive: ").append(String.valueOf(summary.getConnected()), green);
+                                }
+
                                 if (lastQps != null) {
-                                    builder .append(" sent: ")
-                                            .append(String.valueOf(summary.getSent()), green)
-                                            .append(",")
-                                            .append(String.valueOf(lastQps.getSummary().getSent()), green)
-                                            .append("/s(")
-                                            .append(formatBytes(summary.getSentBytes()), blue)
-                                            .append(",")
-                                            .append(formatBytes(lastQps.getSummary().getSentBytes()), blue)
-                                            .append("/s)");
+                                    builder.append(" sent: ")
+                                           .append(String.valueOf(summary.getSent()), green)
+                                           .append(",")
+                                           .append(String.valueOf(lastQps.getSummary().getSent()), green)
+                                           .append("/s(")
+                                           .append(formatBytes(summary.getSentBytes()), blue)
+                                           .append(",")
+                                           .append(formatBytes(lastQps.getSummary().getSentBytes()), blue)
+                                           .append("/s)");
 
-                                    builder .append(" received: ")
-                                            .append(String.valueOf(summary.getReceived()), green)
-                                            .append(",")
-                                            .append(String.valueOf(lastQps.getSummary().getReceived()), green)
-                                            .append("/s(")
-                                            .append(formatBytes(summary.getReceivedBytes()), blue)
-                                            .append(",")
-                                            .append(formatBytes(lastQps.getSummary().getReceivedBytes()), blue)
-                                            .append("/s)");
-                                }else {
-                                    builder .append(" sent: ")
-                                            .append(String.valueOf(summary.getSent()), green)
-                                            .append("(")
-                                            .append(formatBytes(summary.getSentBytes()), blue)
-                                            .append(")");
+                                    builder.append(" received: ")
+                                           .append(String.valueOf(summary.getReceived()), green)
+                                           .append(",")
+                                           .append(String.valueOf(lastQps.getSummary().getReceived()), green)
+                                           .append("/s(")
+                                           .append(formatBytes(summary.getReceivedBytes()), blue)
+                                           .append(",")
+                                           .append(formatBytes(lastQps.getSummary().getReceivedBytes()), blue)
+                                           .append("/s)");
+                                } else {
+                                    builder.append(" sent: ")
+                                           .append(String.valueOf(summary.getSent()), green)
+                                           .append("(")
+                                           .append(formatBytes(summary.getSentBytes()), blue)
+                                           .append(")");
 
                                     builder.append(" received: ")
                                            .append(String.valueOf(summary.getReceived()), green)
@@ -177,8 +187,17 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                            .append(formatBytes(summary.getReceivedBytes()), blue)
                                            .append(")");
                                 }
-
                             }
+
+                            double cpu = SystemMonitor.jvmCpuUsage.value();
+                            MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
+                            double heapUsage = (double) heap.getUsed() / heap.getMax();
+
+                            builder.append(" JVM CPU: ")
+                                   .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
+
+                            builder.append(" JVM Mem: ")
+                                   .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
 
                             Throwable lastError = benchmark.getLastError();
                             if (null != lastError) {
