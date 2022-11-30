@@ -114,9 +114,21 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
         @Override
         protected void createHeader(List<AttributedString> lines) {
-            int bindex = 0;
+
+            lines.add(createLine(builder->{
+                double cpu = SystemMonitor.jvmCpuUsage.value();
+                MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
+                double heapUsage = (double) heap.getUsed() / heap.getMax();
+
+                builder.append("JVM CPU: ")
+                       .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
+
+                builder.append(" JVM Mem: ")
+                       .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
+
+            }));
+
             for (Benchmark benchmark : benchmarks) {
-                int fBindex = bindex;
                 Deque<Benchmark.Snapshot> snapshots = benchmark.snapshots();
 
                 Benchmark.Snapshot last = snapshots.peekLast();
@@ -151,19 +163,6 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                         .append(">=")
                                         .append(String.valueOf(entry.getKey().toMillis()))
                                         .append("ms");
-                            }
-                            if (fBindex == 0) {
-                                double cpu = SystemMonitor.jvmCpuUsage.value();
-                                MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
-                                double heapUsage = (double) heap.getUsed() / heap.getMax();
-
-                                builder.append(" JVM CPU: ")
-                                       .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
-
-                                builder.append(" JVM Mem: ")
-                                       .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
-
-
                             }
 
                             Throwable lastError = benchmark.getLastError();
@@ -249,7 +248,6 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                             }
                         })
                 );
-                bindex++;
             }
         }
 
