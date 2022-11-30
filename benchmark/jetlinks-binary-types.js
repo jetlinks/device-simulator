@@ -6,7 +6,7 @@ var dataTypes = [];
 
 var StringType = {
     decode: function (buffer) {
-        var len = buffer.readInt();
+        var len = buffer.readUnsignedShort();
         var bytes = new ByteArr(len);
 
         buffer.readBytes(bytes);
@@ -16,9 +16,9 @@ var StringType = {
     encode: function (str, buffer) {
         var bytes = str.getBytes();
         if (bytes.length === 0) {
-            buffer.writeInt(0);
+            buffer.writeShort(0);
         } else {
-            buffer.writeInt(bytes.length);
+            buffer.writeShort(bytes.length);
             buffer.writeBytes(bytes);
         }
     },
@@ -55,7 +55,7 @@ var IntType = {
 }
 var ArrayType = {
     decode: function (buffer) {
-        var len = buffer.readShort();
+        var len = buffer.readUnsignedShort();
         var arr = new java.util.ArrayList(parseInt(len));
 
         for (let i = 0; i < len; i++) {
@@ -74,7 +74,7 @@ var ArrayType = {
 }
 var ObjectType = {
     decode: function (buffer) {
-        var len = buffer.readShort();
+        var len = buffer.readUnsignedShort();
         var map = new java.util.HashMap(len);
         for (let i = 0; i < len; i++) {
             map.put(StringType.decode(buffer), decode(buffer));
