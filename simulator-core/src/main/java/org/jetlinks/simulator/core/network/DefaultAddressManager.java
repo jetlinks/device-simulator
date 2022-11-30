@@ -41,7 +41,8 @@ class DefaultAddressManager implements AddressManager {
                     InetAddress address = addr.nextElement();
                     if (address instanceof Inet4Address
                             && !address.isLoopbackAddress()) {
-                        addressRefs.add(new InetAddressRef(address, maxPorts));
+                        addressRefs.add(new InetAddressRef(it, address, maxPorts));
+                        break;
                     }
                 }
             }
@@ -61,6 +62,26 @@ class DefaultAddressManager implements AddressManager {
             }
         }
         throw new IllegalStateException("Too many open ports!");
+    }
+
+    @Override
+    public Address takeAddress(String networkInterface) {
+        if(networkInterface==null){
+            return takeAddress();
+        }
+        for (InetAddressRef addressRef : addressRefs) {
+            if (networkInterface.equals(addressRef.getNetworkInterface().getName())
+                    || networkInterface.equals(addressRef.getNetworkInterface().getDisplayName()) ||
+                    networkInterface.equals(addressRef.getAddress().getHostAddress())) {
+                if (addressRef.isAlive()) {
+                    return new AddressInfo(addressRef);
+                } else {
+                    throw new IllegalStateException("Too many open ports!");
+                }
+            }
+
+        }
+        throw new IllegalStateException("Unknown network interface:" + networkInterface);
     }
 
     @Override
@@ -101,10 +122,13 @@ class DefaultAddressManager implements AddressManager {
     @Getter
     @AllArgsConstructor
     private static class InetAddressRef extends AbstractReferenceCounted {
+
+        private final NetworkInterface networkInterface;
         @Getter
         private final InetAddress address;
 
-        public InetAddressRef(InetAddress address, int count) {
+        public InetAddressRef(NetworkInterface networkInterface, InetAddress address, int count) {
+            this.networkInterface = networkInterface;
             this.address = address;
             retain(count);
         }

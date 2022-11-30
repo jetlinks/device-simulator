@@ -49,9 +49,10 @@ public class HTTPClient extends AbstractConnection {
 
 
     public static Mono<HTTPClient> create(HTTPClientOptions options) {
-        Address addr = AddressManager.global().takeAddress();
+        Address addr = AddressManager.global().takeAddress(options.getLocalAddress());
         try {
             options.setLocalAddress(addr.getAddress().getHostAddress());
+            options.setSsl(options.getBasePath().startsWith("https"));
             return Mono.just(
                     new HTTPClient(
                             options.getId(),
@@ -154,7 +155,11 @@ public class HTTPClient extends AbstractConnection {
         if (StringUtils.hasText(uri.getQuery())) {
             pathAll = pathAll + "?" + uri.getQuery();
         }
-        return client.request(method, uri.getPort(), uri.getHost(), pathAll);
+        int port = uri.getPort();
+        if (port <= 0) {
+            port = "https".equals(uri.getScheme()) ? 443 : 80;
+        }
+        return client.request(method, port, uri.getHost(), pathAll);
     }
 
     private Mono<HttpResponse> request(Future<HttpClientRequest> feature,

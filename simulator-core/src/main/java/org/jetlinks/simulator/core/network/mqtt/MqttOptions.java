@@ -1,5 +1,6 @@
 package org.jetlinks.simulator.core.network.mqtt;
 
+import io.vertx.mqtt.MqttClientOptions;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,34 +9,29 @@ import java.util.Map;
 
 @Getter
 @Setter
-public class MqttOptions {
+public class MqttOptions extends MqttClientOptions {
     String host = "127.0.0.1";
 
     int port = 1883;
 
-    String clientId;
+    public MqttOptions() {
 
-    String username;
+    }
 
-    String password;
+    private MqttOptions(MqttOptions options) {
+        super(options);
+        setHost(options.getHost());
+        setPort(options.getPort());
+    }
 
     @Override
     public String toString() {
-        return String.format("mqtt://%s@%s:%d", clientId, host, port);
+        return String.format("mqtt://%s@%s:%d", getClientId(), host, port);
     }
 
 
     public MqttOptions copy() {
-        return new MqttOptions().copyFrom(this);
-    }
-
-    public MqttOptions copyFrom(MqttOptions options) {
-        setClientId(options.getClientId());
-        setHost(options.getHost());
-        setPort(options.getPort());
-        setUsername(options.getUsername());
-        setPassword(options.getPassword());
-        return this;
+        return new MqttOptions(this);
     }
 
     private MqttOptions apply(Map<String, Object> args) {
@@ -43,12 +39,13 @@ public class MqttOptions {
             String key = "{" + entry.getKey() + "}";
             String value = String.valueOf(entry.getValue());
 
-            clientId = clientId.replace(key, value);
-            if (username != null) {
-                username = username.replace(key, value);
+            setClientId(getClientId().replace(key, value));
+
+            if (getUsername() != null) {
+                setUsername(getUsername().replace(key, value));
             }
-            if (password != null) {
-                password = password.replace(key, value);
+            if (getPassword() != null) {
+                setPassword(getPassword().replace(key, value));
             }
         }
 

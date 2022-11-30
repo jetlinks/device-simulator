@@ -70,10 +70,10 @@ public class MqttClient extends AbstractConnection {
     public static Mono<MqttClient> connect(Vertx vertx,
                                            InetSocketAddress server,
                                            MqttOptions options) {
-        Address localAddress = AddressManager.global().takeAddress();
+        Address localAddress = AddressManager.global().takeAddress(options.getLocalAddress());
 
         return Mono.<MqttClient>create(sink -> {
-                       MqttClientOptions clientOptions = new MqttClientOptions();
+                       MqttClientOptions clientOptions = options.copy();
                        clientOptions.setClientId(options.getClientId());
                        clientOptions.setUsername(options.getUsername());
                        clientOptions.setPassword(options.getPassword());
@@ -98,7 +98,7 @@ public class MqttClient extends AbstractConnection {
                                    if (msg != null) {
                                        if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
                                            MqttClient mqttClient = new MqttClient(client, localAddress);
-                                           mqttClient.attribute("clientId", options.clientId);
+                                           mqttClient.attribute("clientId", options.getClientId());
                                            mqttClient.attribute("username", options.getUsername());
                                            mqttClient.changeState(State.connected);
                                            sink.success(mqttClient);

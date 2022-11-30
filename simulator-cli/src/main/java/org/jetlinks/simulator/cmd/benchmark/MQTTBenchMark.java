@@ -1,5 +1,7 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
@@ -16,13 +18,20 @@ import java.util.Collections;
                 "Create MQTT Benchmark"
         },
         headerHeading = "%n", sortOptions = false)
-class MqttBenchMark extends AbstractBenchmarkCommand implements Runnable {
+class MQTTBenchMark extends AbstractBenchmarkCommand implements Runnable {
 
     @CommandLine.Mixin
     MqttCommandOptions command;
 
+    @CommandLine.Mixin
+    NetClientCommandOption common;
+
     @Override
     protected Mono<? extends Connection> createConnection(ConnectCreateContext ctx) {
+        if (null != common) {
+            common.apply(command);
+        }
+
         MqttOptions commandOptions = command.refactor(Collections.singletonMap("index", ctx.index()));
         ctx.beforeConnect(commandOptions);
         return MqttClient
@@ -47,26 +56,32 @@ class MqttBenchMark extends AbstractBenchmarkCommand implements Runnable {
             super.setPort(port);
         }
 
-        @Override
         @CommandLine.Option(names = {"-c", "--clientId"},
                 description = "clientId template",
                 order = 3,
                 defaultValue = "mqtt-simulator-{index}",
                 required = true)
-        public void setClientId(String clientId) {
+        public void setClientId0(String clientId) {
             super.setClientId(clientId);
         }
 
-        @Override
-        @CommandLine.Option(names = {"-u", "--username"}, description = "username template", order = 4, defaultValue = "mqtt-simulator")
-        public void setUsername(String username) {
+        @CommandLine.Option(names = {"-u", "--username"}, description = "MQTT username", order = 4, defaultValue = "mqtt-simulator")
+        public void setUsername0(String username) {
             super.setUsername(username);
         }
 
-        @Override
-        @CommandLine.Option(names = {"-P", "--password"}, description = "password template}", order = 5, defaultValue = "mqtt-simulator")
-        public void setPassword(String password) {
+        @CommandLine.Option(names = {"-P", "--password"}, description = "MQTT password", order = 5, defaultValue = "mqtt-simulator")
+        public void setPassword0(String password) {
             super.setPassword(password);
+        }
+
+
+        @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
+        private String[] topics;
+
+        @CommandLine.Option(names = {"--interface"}, description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
+        public void setLocalAddress0(String localAddress) {
+            super.setLocalAddress(localAddress);
         }
 
 

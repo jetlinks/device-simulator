@@ -16,6 +16,8 @@ public class UDPOptions extends DatagramSocketOptions {
     private String host;
     private int port;
 
+    private String localAddress;
+
     public UDPOptions() {
     }
 
@@ -24,6 +26,7 @@ public class UDPOptions extends DatagramSocketOptions {
         this.id = options.getId();
         this.host = options.getHost();
         this.port = options.getPort();
+        this.localAddress = options.getLocalAddress();
     }
 
     public UDPOptions copy() {

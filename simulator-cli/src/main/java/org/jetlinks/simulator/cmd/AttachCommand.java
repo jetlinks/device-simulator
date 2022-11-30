@@ -38,7 +38,6 @@ public class AttachCommand extends FullScreenCommand {
     protected static final AttributedStyle cursorStyle = AttributedStyle.BOLD
             .background(AttributedStyle.WHITE).foreground(AttributedStyle.BLACK);
 
-    protected static final AttributedStyle black = AttributedStyle.BOLD.background(AttributedStyle.BLACK);
     static Parser parser = new DefaultParser();
     protected StringBuilder editBuffer;
 
@@ -265,16 +264,14 @@ public class AttachCommand extends FullScreenCommand {
 
     @Override
     protected void bindDefault(KeyMap<Operation> keys) {
-        keys.bind(DefaultOperation.EXIT, KeyMap.ctrl('c'));
+        keys.bind(DefaultOperation.EXIT, KeyMap.ctrl('q'));
 
-        keys.bind(DefaultOperation.CLEAR, KeyMap.ctrl('l'));
+        keys.bind(DefaultOperation.CLEAR, KeyMap.ctrl('c'));
 
         keys.setUnicode(EditorOperation.INSERT);
         for (char i = 32; i < 256; i++) {
             keys.bind(EditorOperation.INSERT, Character.toString(i));
         }
-
-        keys.bind(EditorOperation.HELP, KeyMap.ctrl('?'));
 
         keys.bind(EditorOperation.TAP, key(terminal, InfoCmp.Capability.tab));
 
@@ -348,6 +345,11 @@ public class AttachCommand extends FullScreenCommand {
             case "q:":
             case "exit":
                 return false;
+            case "?":
+            case "":
+            case "help":
+                printf(commandLine().getUsageMessage());
+                break;
             case "clear":
                 doClear();
                 clearFooter();

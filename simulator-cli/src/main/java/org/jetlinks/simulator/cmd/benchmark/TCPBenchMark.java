@@ -1,5 +1,8 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import io.vertx.core.net.NetClientOptions;
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.Global;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
@@ -16,13 +19,20 @@ import java.util.Collections;
                 "Create TCP Benchmark"
         },
         headerHeading = "%n", sortOptions = false)
-class TcpBenchMark extends AbstractBenchmarkCommand implements Runnable {
+class TCPBenchMark extends AbstractBenchmarkCommand implements Runnable {
 
     @CommandLine.Mixin
     TCPCommandOptions command;
 
+    @CommandLine.Mixin
+    NetClientCommandOption common;
+
     @Override
     protected Mono<? extends Connection> createConnection(ConnectCreateContext ctx) {
+        if (null != common) {
+            common.apply(command);
+        }
+
         TcpOptions commandOptions = command.refactor(Collections.singletonMap("index", ctx.index()));
         ctx.beforeConnect(commandOptions);
         return TcpClient
@@ -72,6 +82,7 @@ class TcpBenchMark extends AbstractBenchmarkCommand implements Runnable {
         public void setLengthField(Integer[] lengthField) {
             super.setLengthField(lengthField);
         }
+
     }
 
 }

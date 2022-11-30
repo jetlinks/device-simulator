@@ -1,6 +1,9 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.net.NetClientOptions;
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
 import org.jetlinks.simulator.core.network.http.HTTPClient;
@@ -26,9 +29,15 @@ class HTTPBenchMark extends AbstractBenchmarkCommand implements Runnable {
     @CommandLine.Mixin
     CommandOptions command;
 
+    @CommandLine.Mixin
+    NetClientCommandOption common;
+
     @Override
     protected Mono<? extends Connection> createConnection(ConnectCreateContext ctx) {
         HTTPClientOptions commandOptions = command.refactor(Collections.singletonMap("index", ctx.index()));
+        if (null != common) {
+            common.apply(commandOptions);
+        }
         ctx.beforeConnect(commandOptions);
         return HTTPClient.create(commandOptions);
     }
@@ -54,10 +63,14 @@ class HTTPBenchMark extends AbstractBenchmarkCommand implements Runnable {
             super.setBasePath(basePath.toString());
         }
 
-        @Override
         @CommandLine.Option(names = {"--shared"}, description = "Shared Client", defaultValue = "false")
-        public HttpClientOptions setShared(boolean shared) {
-            return super.setShared(shared);
+        public void setShared0(boolean shared) {
+            super.setShared(shared);
+        }
+
+        @CommandLine.Option(names = {"--interface"}, description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
+        public void setLocalAddress0(String localAddress) {
+            super.setLocalAddress(localAddress);
         }
     }
 

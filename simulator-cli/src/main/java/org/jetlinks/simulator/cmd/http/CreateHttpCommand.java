@@ -1,14 +1,15 @@
 package org.jetlinks.simulator.cmd.http;
 
 import org.jetlinks.simulator.cmd.AbstractCommand;
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.http.HTTPClient;
 import org.jetlinks.simulator.core.network.http.HTTPClientOptions;
-import org.jetlinks.simulator.core.network.udp.UDPClient;
-import org.jetlinks.simulator.core.network.udp.UDPOptions;
 import org.springframework.http.HttpHeaders;
 import picocli.CommandLine;
 
+import java.net.URL;
 import java.time.Duration;
 import java.util.Map;
 
@@ -19,10 +20,15 @@ import java.util.Map;
 public class CreateHttpCommand extends AbstractCommand implements Runnable {
 
     @CommandLine.Mixin
+    private NetClientCommandOption common;
+    @CommandLine.Mixin
     private Options options;
 
     @Override
     public void run() {
+        if (null != common) {
+            common.apply(options);
+        }
         printf("create http client %s", options.getId());
         try {
             HTTPClient client = HTTPClient.create(options).block(Duration.ofSeconds(10));
@@ -65,16 +71,15 @@ public class CreateHttpCommand extends AbstractCommand implements Runnable {
         }
 
         @CommandLine.Option(names = {"-h", "--header"}, description = "Default Headers")
-        public void setHeader(Map<String,String> header){
-            HttpHeaders headers=new HttpHeaders();
+        public void setHeader(Map<String, String> header) {
+            HttpHeaders headers = new HttpHeaders();
             header.forEach(headers::add);
             setHeaders(headers);
         }
 
-        @Override
-        @CommandLine.Parameters
-        public void setBasePath(String basePath) {
-            super.setBasePath(basePath);
+        @CommandLine.Parameters(paramLabel = "URL", description = "URL,start with http or https")
+        public void setBasePath0(URL basePath) {
+            super.setBasePath(basePath.toString());
         }
 
 

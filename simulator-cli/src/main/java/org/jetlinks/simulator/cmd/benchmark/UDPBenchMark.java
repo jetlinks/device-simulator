@@ -1,5 +1,6 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.Global;
 import org.jetlinks.simulator.core.benchmark.ConnectCreateContext;
@@ -51,6 +52,11 @@ class UDPBenchMark extends AbstractBenchmarkCommand implements Runnable {
             super.setPort(port);
         }
 
+        @Override
+        @CommandLine.Option(names = {"--interface"}, description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
+        public void setLocalAddress(String localAddress) {
+            super.setLocalAddress(localAddress);
+        }
     }
 
 }

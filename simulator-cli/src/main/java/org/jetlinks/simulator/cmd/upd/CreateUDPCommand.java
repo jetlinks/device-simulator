@@ -1,6 +1,7 @@
 package org.jetlinks.simulator.cmd.upd;
 
 import org.jetlinks.simulator.cmd.AbstractCommand;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
 import org.jetlinks.simulator.core.network.udp.UDPClient;
@@ -56,6 +57,12 @@ public class CreateUDPCommand extends AbstractCommand implements Runnable {
         @CommandLine.Option(names = {"-p", "--port"}, description = "Remote port")
         public void setPort(int port) {
             super.setPort(port);
+        }
+
+        @Override
+        @CommandLine.Option(names = {"--interface"}, paramLabel = "interface", description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
+        public void setLocalAddress(String localAddress) {
+            super.setLocalAddress(localAddress);
         }
     }
 }

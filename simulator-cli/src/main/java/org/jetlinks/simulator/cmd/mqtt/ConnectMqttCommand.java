@@ -1,12 +1,16 @@
 package org.jetlinks.simulator.cmd.mqtt;
 
+import io.vertx.core.net.NetClientOptions;
 import org.jetlinks.simulator.cmd.AbstractCommand;
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
 import org.springframework.util.CollectionUtils;
 import picocli.CommandLine;
 
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.time.Duration;
 import java.util.StringJoiner;
 
@@ -19,8 +23,15 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
     @CommandLine.Mixin
     MqttCommandOptions command;
 
+
+    @CommandLine.Mixin
+    private NetClientCommandOption common;
+
     @Override
     public void run() {
+        if (common != null) {
+            common.apply(command);
+        }
         printf("connecting %s", command);
         try {
             MqttClient client = MqttClient
@@ -56,23 +67,21 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
             super.setPort(port);
         }
 
-        @Override
         @CommandLine.Option(names = {"-c", "--clientId"}, description = "MQTT clientId", order = 3, defaultValue = "mqtt-simulator")
-        public void setClientId(String clientId) {
+        public void setClientId0(String clientId) {
             super.setClientId(clientId);
         }
 
-        @Override
         @CommandLine.Option(names = {"-u", "--username"}, description = "MQTT username", order = 4, defaultValue = "mqtt-simulator")
-        public void setUsername(String username) {
+        public void setUsername0(String username) {
             super.setUsername(username);
         }
 
-        @Override
         @CommandLine.Option(names = {"-P", "--password"}, description = "MQTT password", order = 5, defaultValue = "mqtt-simulator")
-        public void setPassword(String password) {
+        public void setPassword0(String password) {
             super.setPassword(password);
         }
+
 
         @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
         private String[] topics;

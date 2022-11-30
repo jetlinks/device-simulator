@@ -55,14 +55,14 @@ public class UDPClient extends AbstractConnection {
     }
 
     public static Mono<UDPClient> create(UDPOptions options) {
-        Address address = AddressManager.global().takeAddress();
-
+        Address address = AddressManager.global().takeAddress(options.getLocalAddress());
+        options.setLocalAddress(address.getAddress().getHostAddress());
         return Mono.fromCompletionStage(() -> {
             options.setReusePort(true);
             return Global
                     .vertx()
                     .createDatagramSocket(options)
-                    .listen(0, address.getAddress().getHostAddress())
+                    .listen(0, options.getLocalAddress())
                     .map(socket -> new UDPClient(options.getId(),
                                                  socket,
                                                  InetSocketAddress.createUnresolved(options.getHost(), options.getPort()),

@@ -58,7 +58,7 @@ public class TcpClient extends AbstractConnection {
     }
 
     public static Mono<TcpClient> connect(Vertx vertx, TcpOptions tcpOptions) {
-        Address addr = AddressManager.global().takeAddress();
+        Address addr = AddressManager.global().takeAddress(tcpOptions.getLocalAddress());
         tcpOptions.setLocalAddress(addr.getAddress().getHostAddress());
 
         return Mono

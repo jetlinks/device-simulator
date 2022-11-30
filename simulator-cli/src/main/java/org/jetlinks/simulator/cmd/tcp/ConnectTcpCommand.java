@@ -1,6 +1,10 @@
 package org.jetlinks.simulator.cmd.tcp;
 
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.net.PemKeyCertOptions;
 import org.jetlinks.simulator.cmd.AbstractCommand;
+import org.jetlinks.simulator.cmd.NetClientCommandOption;
+import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.Global;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
@@ -8,6 +12,7 @@ import org.jetlinks.simulator.core.network.tcp.TcpClient;
 import org.jetlinks.simulator.core.network.tcp.TcpOptions;
 import picocli.CommandLine;
 
+import java.io.File;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 
@@ -20,8 +25,14 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
     @CommandLine.Mixin
     TCPCommandOptions command;
 
+    @CommandLine.Mixin
+    private NetClientCommandOption common;
+
     @Override
     public void run() {
+        if (common != null) {
+            common.apply(command);
+        }
         printf("connecting  %s", command);
         try {
             TcpClient client = TcpClient
@@ -35,7 +46,7 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
                 main()
                         .getCommandLine()
                         .execute("tcp", "attach", client.getId());
-            }else {
+            } else {
                 printfError(" error!%n");
             }
 
@@ -60,7 +71,7 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
         }
 
         @Override
-        @CommandLine.Option(names = {"-p", "--port"}, description = "port", order = 3,required = true)
+        @CommandLine.Option(names = {"-p", "--port"}, description = "port", order = 3, required = true)
         public void setPort(int port) {
             super.setPort(port);
         }
@@ -84,6 +95,7 @@ class ConnectTcpCommand extends AbstractCommand implements Runnable {
         public void setLengthField(Integer[] lengthField) {
             super.setLengthField(lengthField);
         }
+
     }
 }
 

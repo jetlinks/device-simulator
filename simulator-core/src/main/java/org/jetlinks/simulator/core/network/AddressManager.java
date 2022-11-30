@@ -12,5 +12,7 @@ public interface AddressManager {
 
     Address takeAddress();
 
+    Address takeAddress(String networkInterface);
+
     List<InetAddress> getAliveLocalAddresses();
 }

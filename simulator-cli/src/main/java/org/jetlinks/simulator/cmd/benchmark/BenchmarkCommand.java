@@ -4,9 +4,8 @@ import org.apache.commons.collections.MapUtils;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.cmd.CommonCommand;
 import org.jetlinks.simulator.cmd.AttachCommand;
-import org.jetlinks.simulator.core.Connection;
-import org.jetlinks.simulator.core.ConnectionManager;
-import org.jetlinks.simulator.core.ExceptionUtils;
+import org.jetlinks.simulator.cmd.ListConnection;
+import org.jetlinks.simulator.core.*;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.monitor.SystemMonitor;
@@ -17,22 +16,22 @@ import org.springframework.util.StringUtils;
 import picocli.CommandLine;
 
 import java.io.File;
-import java.io.FileDescriptor;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @CommandLine.Command(name = "benchmark",
         description = "Run Benchmark",
         headerHeading = "%n",
         subcommands = {
-                MqttBenchMark.class,
+                MQTTBenchMark.class,
                 BenchmarkCommand.StatsCommand.class,
                 BenchmarkListCommand.class,
-                TcpBenchMark.class,
+                TCPBenchMark.class,
                 UDPBenchMark.class,
                 HTTPBenchMark.class
         })
@@ -78,6 +77,8 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         private String name;
 
         private Collection<Benchmark> benchmarks;
+
+        private LinkedList<AttributedString> body = new LinkedList<>();
 
         @Override
         protected void doClear() {
@@ -254,6 +255,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                 }
             }
 
+            lines.addAll(body);
         }
 
         @Override
@@ -264,11 +266,20 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         @CommandLine.Command(name = "",
                 subcommands = {
                         ReloadCommand.class,
-                        Stop.class
+                        Stop.class,
+                        ListCommand.class
                 },
                 customSynopsis = {""},
                 synopsisHeading = "")
         class AttachCommands extends CommonCommand {
+
+            ConnectionManager connectionManager() {
+                return new CompositeConnectionManager(
+                        benchmarks.stream()
+                                  .map(Benchmark::getConnectionManager)
+                                  .collect(Collectors.toList())
+                );
+            }
 
             void reload(ReloadCommand command) {
                 for (Benchmark benchmark : benchmarks) {
@@ -292,9 +303,39 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                 }
             }
 
+            void appendBody(String str) {
+                for (Benchmark benchmark : benchmarks) {
+                    benchmark.getLogs().add(str);
+                    break;
+                }
+            }
+
         }
 
-        @CommandLine.Command(name = "reload")
+
+        @CommandLine.Command(name = "select",
+                description = "Search connections",
+                headerHeading = "%n")
+        static class ListCommand extends ListConnection {
+
+            @Override
+            protected ConnectionManager connectionManager() {
+                return ((AttachCommands) parent).connectionManager();
+            }
+
+            @Override
+            protected void printf(String template, Object... args) {
+                ((AttachCommands) parent).appendBody(String.format(template, args));
+            }
+
+            @Override
+            protected void printfError(String template, Object... args) {
+                ((AttachCommands) parent).appendBody(String.format(template, args));
+            }
+        }
+
+
+        @CommandLine.Command(name = "reload",description = "Reload Benchmark")
         static class ReloadCommand extends CommonCommand {
 
             @CommandLine.Option(names = {"--script"}, description = "Script File", order = 1)
@@ -309,7 +350,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
             }
         }
 
-        @CommandLine.Command(name = "stop")
+        @CommandLine.Command(name = "stop",description = "Stop Benchmark")
         static class Stop extends CommonCommand {
             @Override
             public void run() {
