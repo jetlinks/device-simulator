@@ -68,10 +68,6 @@ class HTTPBenchMark extends AbstractBenchmarkCommand implements Runnable {
             super.setShared(shared);
         }
 
-        @CommandLine.Option(names = {"--interface"}, description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
-        public void setLocalAddress0(String localAddress) {
-            super.setLocalAddress(localAddress);
-        }
     }
 
 }

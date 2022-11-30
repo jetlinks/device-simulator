@@ -1,16 +1,16 @@
 var $benchmark = benchmark;
 
-var Types = require("benchmark/tcp/tcp-types.js");
+var Types = require("benchmark/jetlinks-binary-types.js");
 
 var messageTypes = [];
-var doOnReadProperty;
+var doOnReadProperty, doOnSend;
 
 
 var ReadProperty = {
     handle: function (buffer, client, msgId) {
         var properties = Types.ArrayType.decode(buffer);
 
-        var response = client.newBuffer();
+        var response = newBuffer();
 
         //0x05 回复读取属性指令
         response.writeByte(0x05);
@@ -21,7 +21,7 @@ var ReadProperty = {
         //deviceId
         Types.StringType.encode(client.getId(), response);
 
-        if (typeof doOnReadProperty === "undefined") {
+        if (typeof doOnReadProperty === "undefined" || typeof doOnSend == 'undefined') {
             //error
             response.writeBoolean(false);
             encode("unsupported", response)
@@ -40,7 +40,7 @@ var ReadProperty = {
             }
         }
 
-        sendTo(client, response);
+        doOnSend(client, response);
 
     },
     toString: function () {
@@ -55,70 +55,68 @@ messageTypes[0x04] = ReadProperty;
 messageTypes[0x02] = {
 
     handle: function (buffer, client) {
-        return buffer.readUnsignedByte();
+        return ["OK", "NO_AUTH", "UNSUPPORTED"][parseInt(buffer.readUnsignedByte())];
     },
     toString: function () {
         return "ACK";
     }
 };
 
-function sendTo(client, buffer) {
-    var len = buffer.writerIndex();
-   // $benchmark.print(client.getId() + " 发送数据 0x" + client.toHex(buffer))
-    client.send(
-        client.newBuffer().writeInt(len).writeBytes(buffer)
-    )
+function handleFromServer(client, byteBuf) {
+    // $benchmark.print("handle [" + client.getId() + "] downstream: " + client.toHex(byteBuf));
+
+    // 消息类型
+    var typeByte = byteBuf.readByte();
+    var type = messageTypes[parseInt(typeByte)];
+
+    // //时间戳
+    var timestamp = byteBuf.readLong();
+    //消息id
+    var msgId = byteBuf.readUnsignedShort();
+    //设备ID
+    var deviceId = Types.StringType.decode(byteBuf);
+
+    if (type && type.handle) {
+        if (typeByte === 0x02) {
+            $benchmark.print("收到来自服务的设备[" + client.getId() + "]应答[" + type.handle(byteBuf, client, msgId) + ")]:序号 [" + msgId + "] ");
+            return
+        }
+        $benchmark.print("收到来自服务的设备[" + client.getId() + "]指令[" + typeByte + "(" + type + ")]:序号 [" + msgId + "] ")
+        type.handle(byteBuf, client, msgId);
+
+    } else {
+        $benchmark.print("不支持的设备 [" + client.getId() + "] 指令[" + typeByte + "]:序号 [" + msgId + "] ")
+    }
 
 }
 
-
+var msgId = 1;
 return {
-    reportProperty: function (client, properties) {
-        var response = client.newBuffer();
+    createReportProperty: function (client, properties) {
+        var buffer = newBuffer();
 
         //0x03 上报属性
-        response.writeByte(0x03);
+        buffer.writeByte(0x03);
         //时间
-        response.writeLong($benchmark.now());
+        buffer.writeLong($benchmark.now());
         //消息ID
-        response.writeShort(0);
+        buffer.writeShort(msgId++);
         //deviceId
-        Types.StringType.encode(client.getId(), response);
+        Types.StringType.encode(client.getId(), buffer);
 
         //encode 属性信息
-        Types.ObjectType.encode(properties, response);
+        Types.ObjectType.encode(properties, buffer);
 
-        sendTo(client, response);
+        return buffer;
     },
-    handleFromServer: function (client, byteBuf) {
-        // $benchmark.print("handle [" + client.getId() + "] downstream: " + client.toHex(byteBuf));
-
-        //长度头 忽略掉
-        var len = byteBuf.readInt();
-
-        var typeByte = byteBuf.readByte();
-
-        // 消息类型
-        var type = messageTypes[parseInt(typeByte)];
-        // //时间戳
-        var timestamp = byteBuf.readLong();
-        // //消息id
-        var msgId = byteBuf.readUnsignedShort();
-        //设备ID
-        var deviceId = Types.StringType.decode(byteBuf);
-
-        if (type && type.handle) {
-            type.handle(byteBuf, client, msgId);
-            $benchmark.print("收到来自服务的设备[" + client.getId() + "]指令[" + typeByte + "(" + type + ")]:序号 [" + msgId + "] ")
-        } else {
-            $benchmark.print("不支持的设备 [" + client.getId() + "] 指令[" + typeByte + "]:序号 [" + msgId + "] ")
-        }
-
-    },
+    handleFromServer: handleFromServer,
     doOnReadProperty: function (callback) {
         doOnReadProperty = callback;
     },
-    online: function (client, token) {
+    doOnSend: function (callback) {
+        doOnSend = callback;
+    },
+    createOnline: function (client, token) {
         var buffer = client.newBuffer();
         //类型 0x01
         buffer.writeByte(0x01);
@@ -132,6 +130,7 @@ return {
         //token
         Types.StringType.encode(client.attribute("token").orElse(token), buffer);
 
-        sendTo(client, buffer);
-    }
+        return buffer;
+    },
+    "types": Types
 }

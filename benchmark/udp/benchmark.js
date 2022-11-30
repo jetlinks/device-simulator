@@ -48,11 +48,18 @@ function onComplete() {
 
 
 function sendTo(client, buffer) {
-    var len = buffer.writerIndex();
-    // $benchmark.print(client.getId() + " 发送数据 0x" + client.toHex(buffer))
-    client.send(
-        newBuffer().writeInt(len).writeBytes(buffer)
-    )
+    var token = secureKey;
+
+    var newBuf = newBuffer();
+    //认证类型
+    newBuf.writeByte(0);
+    //token
+    protocol.types.StringType.encode(token, newBuf);
+
+    //指令
+    newBuf.writeBytes(buffer);
+
+    client.send(newBuf)
 
 }
 
@@ -63,18 +70,25 @@ protocol.doOnSend(sendTo);
 //单个连接创建成功时执行
 function onConnected(client) {
 
-    //上线
-    sendTo(client, protocol.createOnline(client, secureKey));
-
     //订阅读取属性
     client
         .handlePayload(function (buf) {
 
-            let buffer= buf.getByteBuf();
+            var buffer = buf.getByteBuf();
 
-            //忽略长度字段
-            buffer.readInt();
+            //todo 不同认证类型处理
+            var authType = buffer.readByte();
 
+            var token = protocol.types.StringType.decode(buffer);
+
+            var type = buffer.getByte(buffer.readerIndex());
+
+
+            if (token !== secureKey && type !== parseInt(2)) {
+                $benchmark.print("平台下发指令token错误:" + token);
+
+            }
+            //交给协议处理
             protocol.handleFromServer(client, buffer);
         });
 

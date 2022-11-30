@@ -52,6 +52,14 @@ public interface Connection extends Disposable {
 
     void attributes(Map<String, Object> attributes);
 
+    default void set(String key, Object value) {
+        attribute(key, value);
+    }
+
+    default Object get(String key) {
+        return attribute(key).orElse(null);
+    }
+
     Map<String, Object> attributes();
 
     default <T> T unwrap(Class<T> type) {

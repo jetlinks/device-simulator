@@ -79,11 +79,6 @@ class MQTTBenchMark extends AbstractBenchmarkCommand implements Runnable {
         @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
         private String[] topics;
 
-        @CommandLine.Option(names = {"--interface"}, description = "Network Interface", order = 7, completionCandidates = NetworkInterfaceCompleter.class)
-        public void setLocalAddress0(String localAddress) {
-            super.setLocalAddress(localAddress);
-        }
-
 
     }
 

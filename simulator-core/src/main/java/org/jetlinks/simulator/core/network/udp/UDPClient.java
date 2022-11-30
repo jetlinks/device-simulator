@@ -82,6 +82,12 @@ public class UDPClient extends AbstractConnection {
                 .subscribe();
     }
 
+    public Disposable handlePayload(Consumer<Buffer> buffer) {
+        return handle(packet -> {
+            buffer.accept(packet.data());
+        });
+    }
+
     public Disposable handle(Consumer<DatagramPacket> consumer) {
         this.handlers.add(consumer);
         return () -> this.handlers.remove(consumer);

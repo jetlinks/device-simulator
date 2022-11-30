@@ -255,7 +255,6 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                 }
             }
 
-            lines.addAll(body);
         }
 
         @Override

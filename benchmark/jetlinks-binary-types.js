@@ -40,7 +40,6 @@ var DoubleType = {
             (typeof val === 'java.lang.Double')
     }
 }
-
 var IntType = {
     decode: function (buffer) {
         return buffer.readInt();
@@ -97,7 +96,6 @@ dataTypes[0x0D] = ArrayType;
 dataTypes[0x0A] = DoubleType;
 dataTypes[0x0E] = ObjectType;
 
-
 function decode(buffer) {
     var t = buffer.readByte();
     var type = dataTypes[parseInt(t)];
@@ -122,7 +120,6 @@ function encode(val, buffer) {
     }
     console.warn("unsupported encode value type {} :{}", typeof val, val);
 }
-
 
 return {
     encode:encode,
