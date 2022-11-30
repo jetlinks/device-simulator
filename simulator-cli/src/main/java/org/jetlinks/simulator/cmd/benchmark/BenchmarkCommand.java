@@ -75,7 +75,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
             headerHeading = "%n")
     static class StatsCommand extends AttachCommand implements Runnable {
 
-        @CommandLine.Option(names = {"--name"}, description = "名称")
+        @CommandLine.Parameters(description = "Benchmark name", completionCandidates = NameComplete.class)
         private String name;
 
         private Collection<Benchmark> benchmarks;
@@ -163,12 +163,14 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                 builder.append(" JVM Mem: ")
                                        .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
 
-                                Throwable lastError = benchmark.getLastError();
-                                if (null != lastError) {
-                                    builder.append(" Last Error: ")
-                                           .append(ExceptionUtils.getErrorMessage(lastError), red);
 
-                                }
+                            }
+
+                            Throwable lastError = benchmark.getLastError();
+                            if (null != lastError) {
+                                builder.append(" Last Error: ")
+                                       .append(ExceptionUtils.getErrorMessage(lastError), red);
+
                             }
 
                         })
@@ -293,6 +295,9 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
             void reload(ReloadCommand command) {
                 for (Benchmark benchmark : benchmarks) {
+                    if (command.name != null && !Objects.equals(benchmark.getName(), command.name)) {
+                        continue;
+                    }
                     if (command.file != null && command.file.isFile() && command.file.exists()) {
                         benchmark.getOptions().setFile(command.file);
                     }
@@ -353,6 +358,9 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
             @CommandLine.Parameters(paramLabel = "Script arguments")
             Map<String, Object> scriptArgs;
+
+            @CommandLine.Option(names = {"--name"}, description = "Benchmark Name", order = 2, completionCandidates = BenchmarkCommand.NameComplete.class)
+            private String name;
 
             @Override
             public void run() {

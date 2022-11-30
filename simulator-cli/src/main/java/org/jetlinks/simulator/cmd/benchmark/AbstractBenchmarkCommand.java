@@ -47,6 +47,6 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
     }
 
     protected void doAfter() {
-        main().getCommandLine().execute("benchmark", "stats", "--name=" + benchmark.getName());
+        main().getCommandLine().execute("benchmark", "stats", benchmark.getName());
     }
 }
