@@ -10,6 +10,8 @@ import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.monitor.SystemMonitor;
 import org.jetlinks.simulator.core.report.Reporter;
+import org.jetlinks.simulator.history.CommandHistory;
+import org.jline.reader.History;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
 import org.springframework.util.StringUtils;
@@ -78,7 +80,13 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
         private Collection<Benchmark> benchmarks;
 
-        private LinkedList<AttributedString> body = new LinkedList<>();
+        @Override
+        protected History history() {
+            if (name != null) {
+                return CommandHistory.getHistory("benchmark_history_" + name);
+            }
+            return super.history();
+        }
 
         @Override
         protected void doClear() {
@@ -106,8 +114,9 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
         @Override
         protected void createHeader(List<AttributedString> lines) {
+            int bindex = 0;
             for (Benchmark benchmark : benchmarks) {
-
+                int fBindex = bindex;
                 Deque<Benchmark.Snapshot> snapshots = benchmark.snapshots();
 
                 Benchmark.Snapshot last = snapshots.peekLast();
@@ -143,22 +152,23 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                                         .append(String.valueOf(entry.getKey().toMillis()))
                                         .append("ms");
                             }
+                            if (fBindex == 0) {
+                                double cpu = SystemMonitor.jvmCpuUsage.value();
+                                MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
+                                double heapUsage = (double) heap.getUsed() / heap.getMax();
 
-                            double cpu = SystemMonitor.jvmCpuUsage.value();
-                            MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
-                            double heapUsage = (double) heap.getUsed() / heap.getMax();
+                                builder.append(" JVM CPU: ")
+                                       .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
 
-                            builder.append(" JVM CPU: ")
-                                   .append(String.format("%.2f", cpu * 100) + "%", cpu > 0.8 ? red : green);
+                                builder.append(" JVM Mem: ")
+                                       .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
 
-                            builder.append(" JVM Mem: ")
-                                   .append(formatBytes(heap.getUsed()) + "/" + formatBytes(heap.getMax()), heapUsage > 0.8 ? red : green);
+                                Throwable lastError = benchmark.getLastError();
+                                if (null != lastError) {
+                                    builder.append(" Last Error: ")
+                                           .append(ExceptionUtils.getErrorMessage(lastError), red);
 
-                            Throwable lastError = benchmark.getLastError();
-                            if (null != lastError) {
-                                builder.append(" Last Error: ")
-                                       .append(ExceptionUtils.getErrorMessage(lastError), red);
-
+                                }
                             }
 
                         })
@@ -237,6 +247,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
                             }
                         })
                 );
+                bindex++;
             }
         }
 
@@ -334,7 +345,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
         }
 
 
-        @CommandLine.Command(name = "reload",description = "Reload Benchmark")
+        @CommandLine.Command(name = "reload", description = "Reload Benchmark")
         static class ReloadCommand extends CommonCommand {
 
             @CommandLine.Option(names = {"--script"}, description = "Script File", order = 1)
@@ -349,7 +360,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
             }
         }
 
-        @CommandLine.Command(name = "stop",description = "Stop Benchmark")
+        @CommandLine.Command(name = "stop", description = "Stop Benchmark")
         static class Stop extends CommonCommand {
             @Override
             public void run() {
