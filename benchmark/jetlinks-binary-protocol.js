@@ -15,7 +15,7 @@ var ReadProperty = {
         //0x05 回复读取属性指令
         response.writeByte(0x05);
         //时间
-        response.writeLong($benchmark.now());
+        response.writeLong(now());
         //消息ID
         response.writeShort(msgId);
         //deviceId

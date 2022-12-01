@@ -5,7 +5,7 @@ import Mono = reactor.core.publisher.Mono;
 /**
  * 可通过benchmark 命令的执行参数指定比如: benchmark mqtt --port 1883 --script ...  report=true reportLimit=100
  */
-declare var args: java.util.HashMap<string, any>;
+declare var args: java.util.HashMap<string, string>;
 
 /**
  * @see 内置变量 benchmark
@@ -22,7 +22,7 @@ declare namespace java.util {
 
         putIfAbsent(key: K, value: V);
 
-        getOrDefault(key: K): V;
+        getOrDefault(key: K,defaultValue:V): V;
 
     }
 
