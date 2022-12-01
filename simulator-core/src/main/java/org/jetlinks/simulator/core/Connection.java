@@ -78,6 +78,9 @@ public interface Connection extends Disposable {
         return ByteBufUtil.hexDump(NetworkUtils.castToByteBuf(data));
     }
 
+    default void reset(){
+
+    }
 
     enum State {
         connecting,

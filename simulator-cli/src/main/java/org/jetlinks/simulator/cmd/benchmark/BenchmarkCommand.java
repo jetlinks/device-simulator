@@ -261,7 +261,7 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
 
                 for (String log : benchmark.getLogs()) {
                     for (String l : log.split("\n")) {
-                        lines.add(createLine(builder -> builder.append(l)));
+                        lines.add(AttributedString.fromAnsi(l));
                     }
                 }
             }

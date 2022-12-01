@@ -112,24 +112,24 @@ public class TcpClient extends AbstractConnection {
 
     public Mono<Void> sendAsync(Object data) {
         return Mono.<Void>create(sink -> {
-                       ByteBuf buf = NetworkUtils.castToByteBuf(data);
+                    ByteBuf buf = NetworkUtils.castToByteBuf(data);
 
-                       Buffer buffer = Buffer.buffer(buf);
-                       int len = buffer.length();
-                       socket.write(buffer, (res) -> {
-                           try {
-                               if (res.succeeded()) {
-                                   sent(len);
-                                   sink.success();
-                               } else {
-                                   sink.error(res.cause());
-                               }
-                           } finally {
-                               ReferenceCountUtil.safeRelease(buf);
-                           }
-                       });
-                   })
-                   .doOnError(this::error);
+                    Buffer buffer = Buffer.buffer(buf);
+                    int len = buffer.length();
+                    socket.write(buffer, (res) -> {
+                        try {
+                            if (res.succeeded()) {
+                                sent(len);
+                                sink.success();
+                            } else {
+                                sink.error(res.cause());
+                            }
+                        } finally {
+                            ReferenceCountUtil.safeRelease(buf);
+                        }
+                    });
+                })
+                .doOnError(this::error);
     }
 
     public Mono<Void> sendFileAsync(String file) {
@@ -138,18 +138,18 @@ public class TcpClient extends AbstractConnection {
 
     public Mono<Void> sendFileAsync(File file) {
         return Mono.<Void>create(sink -> {
-                       long len = file.length();
-                       socket.sendFile(file.getAbsolutePath(), (res) -> {
-                           if (res.succeeded()) {
-                               sent((int) len);
-                               sink.success();
-                           } else {
-                               sink.error(res.cause());
-                           }
-                       });
+                    long len = file.length();
+                    socket.sendFile(file.getAbsolutePath(), (res) -> {
+                        if (res.succeeded()) {
+                            sent((int) len);
+                            sink.success();
+                        } else {
+                            sink.error(res.cause());
+                        }
+                    });
 
-                   })
-                   .doOnError(this::error);
+                })
+                .doOnError(this::error);
     }
 
 
@@ -170,9 +170,13 @@ public class TcpClient extends AbstractConnection {
             socket.close();
         } catch (Throwable ignore) {
 
-        } finally {
-
         }
         super.doDisposed();
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        bufferHandlers.clear();
     }
 }

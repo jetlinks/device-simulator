@@ -108,8 +108,8 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         }
         disposable.add(
                 Flux.interval(Duration.ofSeconds(1))
-                    .flatMap(ignore -> this.snapshot())
-                    .subscribe()
+                        .flatMap(ignore -> this.snapshot())
+                        .subscribe()
         );
 
         disposable.add(
@@ -142,6 +142,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         getConnectionManager()
                 .getConnections()
                 .filter(Connection::isAlive)
+                .doOnNext(Connection::reset)
                 .subscribe(this::fireConnectionListener);
 
         for (Runnable runnable : completeHandler) {
@@ -219,8 +220,8 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         context.put("benchmark", this);
         return scriptFactory
                 .compileExpose(Script.of("benchmark_" + name, script)
-                                     .returnNative(),
-                               BenchmarkHelper.class)
+                                .returnNative(),
+                        BenchmarkHelper.class)
                 .call(this, context);
 
     }
@@ -335,6 +336,9 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         this.disposable.add(disposable);
     }
 
+    public void doOnReload(Disposable reload) {
+        reloadable.add(reload);
+    }
 
     @Getter
     @Setter

@@ -51,8 +51,8 @@ public class MqttClient extends AbstractConnection {
                                 handler.accept(msg);
                             } catch (Throwable error) {
                                 log.warn("handle mqtt message {} {} error:{}", msg.topicName(),
-                                         msg.payload().toString(),
-                                         ExceptionUtils.getErrorMessage(error));
+                                        msg.payload().toString(),
+                                        ExceptionUtils.getErrorMessage(error));
                             }
 
                         }
@@ -73,44 +73,44 @@ public class MqttClient extends AbstractConnection {
         Address localAddress = AddressManager.global().takeAddress(options.getLocalAddress());
 
         return Mono.<MqttClient>create(sink -> {
-                       MqttClientOptions clientOptions = options.copy();
-                       clientOptions.setClientId(options.getClientId());
-                       clientOptions.setUsername(options.getUsername());
-                       clientOptions.setPassword(options.getPassword());
-                       clientOptions.setLocalAddress(localAddress.getAddress().getHostAddress());
-                       clientOptions.setAutoKeepAlive(true);
-                       clientOptions.setTcpKeepAlive(true);
-                       clientOptions.setMaxMessageSize(1024 * 1024);
-                       clientOptions.setReusePort(true);
+                    MqttClientOptions clientOptions = options.copy();
+                    clientOptions.setClientId(options.getClientId());
+                    clientOptions.setUsername(options.getUsername());
+                    clientOptions.setPassword(options.getPassword());
+                    clientOptions.setLocalAddress(localAddress.getAddress().getHostAddress());
+                    clientOptions.setAutoKeepAlive(true);
+                    clientOptions.setTcpKeepAlive(true);
+                    clientOptions.setMaxMessageSize(1024 * 1024);
+                    clientOptions.setReusePort(true);
 
-                       io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
+                    io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
 
-                       client.connect(
-                               server.getPort(),
-                               server.getHostString(),
-                               res -> {
-                                   if (res.failed()) {
-                                       sink.error(res.cause());
-                                       return;
-                                   }
+                    client.connect(
+                            server.getPort(),
+                            server.getHostString(),
+                            res -> {
+                                if (res.failed()) {
+                                    sink.error(res.cause());
+                                    return;
+                                }
 
-                                   MqttConnAckMessage msg = res.result();
-                                   if (msg != null) {
-                                       if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
-                                           MqttClient mqttClient = new MqttClient(client, localAddress);
-                                           mqttClient.attribute("clientId", options.getClientId());
-                                           mqttClient.attribute("username", options.getUsername());
-                                           mqttClient.changeState(State.connected);
-                                           sink.success(mqttClient);
-                                       } else {
-                                           sink.error(new MqttConnectionException(msg.code()));
-                                       }
-                                   }
-                                   sink.success();
+                                MqttConnAckMessage msg = res.result();
+                                if (msg != null) {
+                                    if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
+                                        MqttClient mqttClient = new MqttClient(client, localAddress);
+                                        mqttClient.attribute("clientId", options.getClientId());
+                                        mqttClient.attribute("username", options.getUsername());
+                                        mqttClient.changeState(State.connected);
+                                        sink.success(mqttClient);
+                                    } else {
+                                        sink.error(new MqttConnectionException(msg.code()));
+                                    }
+                                }
+                                sink.success();
 
-                               });
-                   })
-                   .doOnError(err -> localAddress.release());
+                            });
+                })
+                .doOnError(err -> localAddress.release());
     }
 
     @Override
@@ -222,21 +222,21 @@ public class MqttClient extends AbstractConnection {
         Buffer buffer = Buffer.buffer(payload);
         int len = buffer.length();
         return Mono.<Void>create(sink -> client
-                .publish(topic,
-                         buffer,
-                         MqttQoS.valueOf(qos),
-                         false,
-                         false,
-                         res -> {
-                             ReferenceCountUtil.safeRelease(payload);
-                             sent(len);
-                             if (res.failed()) {
-                                 sink.error(res.cause());
-                             } else {
-                                 sink.success();
-                             }
-                         }))
-                   .doOnError(this::error);
+                        .publish(topic,
+                                buffer,
+                                MqttQoS.valueOf(qos),
+                                false,
+                                false,
+                                res -> {
+                                    ReferenceCountUtil.safeRelease(payload);
+                                    sent(len);
+                                    if (res.failed()) {
+                                        sink.error(res.cause());
+                                    } else {
+                                        sink.success();
+                                    }
+                                }))
+                .doOnError(this::error);
     }
 
     public List<Subscriber> getSubscriptions() {
@@ -250,5 +250,12 @@ public class MqttClient extends AbstractConnection {
         if (client.isConnected()) {
             client.disconnect();
         }
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        getSubscriptions().forEach(Disposable::dispose);
+        subscribers.clear();
     }
 }

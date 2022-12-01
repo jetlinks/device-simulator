@@ -93,6 +93,12 @@ public class UDPClient extends AbstractConnection {
         return () -> this.handlers.remove(consumer);
     }
 
+    @Override
+    public void reset() {
+        super.reset();
+        this.handlers.clear();
+    }
+
     public Mono<Void> sendAsync(String host, int port, Object packet) {
         ByteBuf buf = NetworkUtils.castToByteBuf(packet);
         Buffer buffer = Buffer.buffer(buf);
