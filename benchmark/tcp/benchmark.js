@@ -22,7 +22,7 @@ protocol.doOnReadProperty(function (properties) {
 
     $benchmark.print("读取属性:" + properties);
 
-    let data = new java.util.HashMap();
+    let data = newHashMap();
 
     properties.forEach(function (property) {
         data.put(property, randomFloat(20, 30))

@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public interface BenchmarkHelper {
@@ -69,6 +69,14 @@ public interface BenchmarkHelper {
 
     default int randomInt(int from, int to) {
         return ThreadLocalRandom.current().nextInt(from, to);
+    }
+
+    default <T> List<T> newArrayList() {
+        return new ArrayList<>();
+    }
+
+    default <K, V> Map<String, Object> newHashMap() {
+        return new HashMap<>();
     }
 
 }

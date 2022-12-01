@@ -56,8 +56,8 @@ function reportProperties(client) {
             "Authorization": "Bearer " + secureKey
         },
         path: createTopic(client, "/properties/read/report"),
-        contentType:"application/json",
-         body: $benchmark.toJson(msg)
+        contentType: "application/json",
+        body: toJson(msg)
     });
 
 }

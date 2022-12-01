@@ -3,7 +3,7 @@ var $benchmark = benchmark;
 var Types = require("benchmark/jetlinks-binary-types.js");
 
 var messageTypes = [];
-var doOnReadProperty, doOnSend;
+var doOnReadProperty, _doOnSend;
 
 
 var ReadProperty = {
@@ -21,7 +21,7 @@ var ReadProperty = {
         //deviceId
         Types.StringType.encode(client.getId(), response);
 
-        if (typeof doOnReadProperty === "undefined" || typeof doOnSend == 'undefined') {
+        if (typeof doOnReadProperty === "undefined" || typeof _doOnSend == 'undefined') {
             //error
             response.writeBoolean(false);
             encode("unsupported", response)
@@ -40,7 +40,7 @@ var ReadProperty = {
             }
         }
 
-        doOnSend(client, response);
+        _doOnSend(client, response);
 
     },
     toString: function () {
@@ -98,7 +98,7 @@ return {
         //0x03 上报属性
         buffer.writeByte(0x03);
         //时间
-        buffer.writeLong($benchmark.now());
+        buffer.writeLong(now());
         //消息ID
         buffer.writeShort(msgId++);
         //deviceId
@@ -114,14 +114,14 @@ return {
         doOnReadProperty = callback;
     },
     doOnSend: function (callback) {
-        doOnSend = callback;
+        _doOnSend = callback;
     },
     createOnline: function (client, token) {
         var buffer = client.newBuffer();
         //类型 0x01
         buffer.writeByte(0x01);
         //时间
-        buffer.writeLong($benchmark.now());
+        buffer.writeLong(now());
         //消息ID
         buffer.writeShort(0);
 

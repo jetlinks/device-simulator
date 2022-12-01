@@ -15,6 +15,12 @@ var $reportLimit = parseInt(args.getOrDefault("reportLimit", "100"));
 var $reportInterval = parseInt(args.getOrDefault("interval", "1000"));
 
 
+/**
+ * 创建连接前自定义配置
+ * @see MqttClientOptions
+ * @param index
+ * @param options
+ */
 //创建连接之前动态生成用户名密码
 function beforeConnect(index, options) {
     var clientId = deviceIdPrefix + index;
@@ -50,7 +56,7 @@ function onComplete() {
 function reportProperties(client) {
     //创建随机数据
     var data = {};
-   // $benchmark.print("上报[" + client.getId() + "]属性");
+    // $benchmark.print("上报[" + client.getId() + "]属性");
     for (let i = 0; i < 10; i++) {
         data["temp" + i] = randomFloat(10, 30);
     }

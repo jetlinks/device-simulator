@@ -23,8 +23,7 @@ var StringType = {
         }
     },
     support: function (val) {
-        return typeof val === 'string' ||
-            (typeof val === 'java.lang.String')
+        return typeof val === 'string'
     }
 }
 var DoubleType = {
@@ -35,9 +34,7 @@ var DoubleType = {
         buffer.writeDouble(val);
     },
     support: function (val) {
-        return typeof val === 'number' ||
-            (typeof val === 'java.lang.double') ||
-            (typeof val === 'java.lang.Double')
+        return typeof val === 'number'
     }
 }
 var IntType = {
