@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+    <logger name="reactor" level="warn"/>
+    <logger name="io.netty" level="warn"/>
+    <logger name="org.eclipse" level="warn"/>
+    <logger name="io.vertx" level="off"/>
+
+    <logger name="org.springframework" level="warn"/>
+    　
+    <logger name="org.testcontainers" level="warn"/>
+    　
+    <logger name="org.apache" level="warn"/>
+    　
+    <logger name="script" level="trace"/>
+    <logger name="com.serotonin.bacnet4j" level="warn"/>
+
+    <appender name="TERMINAL" class="org.jetlinks.simulator.cli.TerminalAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="org.jetlinks.simulator.cli.ColorAwarePatternLayout">
+                <pattern>%gray(%30.30logger{0}) %gray(%d) [%highlight(%p)] %m%n</pattern>
+            </layout>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="TERMINAL"/>
+    </root>
+</configuration>
