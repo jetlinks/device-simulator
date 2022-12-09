@@ -109,6 +109,14 @@ return {
 
         return buffer;
     },
+    createPing:function (client){
+        var buffer = newBuffer();
+
+        //0x00 心跳
+        buffer.writeByte(0x00);
+
+        return buffer;
+    },
     handleFromServer: handleFromServer,
     doOnReadProperty: function (callback) {
         doOnReadProperty = callback;

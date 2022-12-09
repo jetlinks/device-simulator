@@ -36,7 +36,15 @@ function onComplete() {
     if (!$enableReport) {
         return;
     }
-    // 定时执行1s
+    // 心跳
+    $benchmark
+        .interval(function () {
+            return $benchmark.randomConnectionAsync(99999999, function (client) {
+                return sendTo(client, protocol.createPing(client));
+            });
+        }, 1000)
+
+    // 定时执行
     $benchmark
         .interval(function () {
             $benchmark.print("上报属性....");
@@ -70,7 +78,7 @@ function onConnected(client) {
     client
         .handlePayload(function (buf) {
 
-            let buffer= buf.getByteBuf();
+            let buffer = buf.getByteBuf();
 
             //忽略长度字段
             buffer.readInt();

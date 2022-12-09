@@ -7,8 +7,8 @@
 var $benchmark = benchmark;
 
 //在jetlinks平台的产品ID
-var productId = args.getOrDefault("productId", "simulator");
-var deviceIdPrefix = args.getOrDefault("deviceIdPrefix", "mqtt-test-");
+var productId = args.getOrDefault("productId", "http-test");
+var deviceIdPrefix = args.getOrDefault("deviceIdPrefix", "http-test-");
 var secureKey = "test";
 
 var $enableReport = "true" === args.getOrDefault("report", "true");
@@ -55,7 +55,7 @@ function reportProperties(client) {
         headers: {
             "Authorization": "Bearer " + secureKey
         },
-        path: createTopic(client, "/properties/read/report"),
+        path: createTopic(client, "/properties/report"),
         contentType: "application/json",
         body: toJson(msg)
     });

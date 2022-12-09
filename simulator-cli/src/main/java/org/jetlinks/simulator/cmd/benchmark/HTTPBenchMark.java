@@ -58,7 +58,7 @@ class HTTPBenchMark extends AbstractBenchmarkCommand implements Runnable {
             setHeaders(headers);
         }
 
-        @CommandLine.Option(names = {"-u", "--url"}, description = "Request Base URL")
+        @CommandLine.Option(names = {"-u", "--url"}, description = "Request Base URL",required = true)
         public void setBasePath(URL basePath) {
             super.setBasePath(basePath.toString());
         }
