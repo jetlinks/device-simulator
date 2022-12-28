@@ -65,7 +65,7 @@ function reportProperties(client) {
     }
 
     //推送mqtt
-    return client.publishAsync(createTopic(client, "/properties/read/report"), 0, $benchmark.toJson(msg));
+    return client.publishAsync(createTopic(client, "/properties/report"), 0, $benchmark.toJson(msg));
 
 }
 
