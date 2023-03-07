@@ -7,10 +7,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -22,6 +19,8 @@ class DefaultAddressManager implements AddressManager {
     static DefaultAddressManager global = new DefaultAddressManager();
 
     private static final List<InetAddressRef> addressRefs = new ArrayList<>();
+
+    private static final boolean disableCheckAddressUsable = Boolean.getBoolean("address.check.disabled");
 
     static {
         try {
@@ -36,11 +35,15 @@ class DefaultAddressManager implements AddressManager {
                         continue;
                     }
                 }
+                if (!it.isUp()) {
+                    break;
+                }
                 Enumeration<InetAddress> addr = it.getInetAddresses();
                 while (addr.hasMoreElements()) {
                     InetAddress address = addr.nextElement();
                     if (address instanceof Inet4Address
-                            && !address.isLoopbackAddress()) {
+                            && !address.isLoopbackAddress()
+                            && checkAddressUsable(address)) {
                         addressRefs.add(new InetAddressRef(it, address, maxPorts));
                         break;
                     }
@@ -53,6 +56,18 @@ class DefaultAddressManager implements AddressManager {
 
     }
 
+    private static boolean checkAddressUsable(InetAddress address) {
+        if (disableCheckAddressUsable) {
+            return true;
+        }
+        try (Socket socket = new Socket()) {
+            socket.bind(new InetSocketAddress(address, 0));
+            socket.connect(new InetSocketAddress("www.baidu.com", 80), 2000);
+            return true;
+        } catch (Throwable err) {
+            return false;
+        }
+    }
     @Override
     public Address takeAddress() {
 
@@ -66,7 +81,7 @@ class DefaultAddressManager implements AddressManager {
 
     @Override
     public Address takeAddress(String networkInterface) {
-        if(networkInterface==null){
+        if (networkInterface == null) {
             return takeAddress();
         }
         for (InetAddressRef addressRef : addressRefs) {
