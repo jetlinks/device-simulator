@@ -180,6 +180,10 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         }
     }
 
+    public long getConnectedSize(){
+        return connectionManager.getConnectionSize();
+    }
+
     public Benchmark onConnected(Consumer<Connection> consumer) {
         this.connectionHandler.add(consumer);
         return this;

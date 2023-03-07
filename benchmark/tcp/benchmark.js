@@ -47,7 +47,9 @@ function onComplete() {
     // 定时执行
     $benchmark
         .interval(function () {
-            $benchmark.print("上报属性....");
+            if ($benchmark.getConnectedSize() > 0) {
+                $benchmark.print("上报属性....");
+            }
             //随机获取100个连接然后上报属性数据
             return $benchmark.randomConnectionAsync($reportLimit, reportTcpProperty);
         }, $reportInterval)

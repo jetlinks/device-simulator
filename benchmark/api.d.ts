@@ -250,6 +250,8 @@ interface Benchmark<O extends ClientOptions, C extends Connection> {
     doOnReload(d: Disposable): void;
 
     doOnDispose(d: Disposable): void;
+
+    getConnectedSize(): number;
 }
 
 interface VertxJsonArray<T> extends ArrayList<T> {

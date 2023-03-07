@@ -28,8 +28,8 @@ function beforeConnect(index, options) {
     var secureId = "test";
     var secureKey = "test";
 
-    var username = secureId + "|" + now();
-    var password = md5(username + "|" + secureKey);
+     var username = secureId + "|" + now();
+     var password = md5(username + "|" + secureKey);
 
     options.setUsername(username);
     options.setPassword(password);
@@ -45,9 +45,10 @@ function onComplete() {
     $benchmark
         .interval(function () {
             //随机获取1000个连接然后上报属性数据
-            $benchmark.print("批量上报属性..");
-            return $benchmark
-                .randomConnectionAsync($reportLimit, reportProperties);
+            if ($benchmark.getConnectedSize() > 0) {
+                return $benchmark
+                    .randomConnectionAsync($reportLimit, reportProperties);
+            }
         }, $reportInterval)
 
 }
@@ -57,15 +58,20 @@ function reportProperties(client) {
     //创建随机数据
     var data = {};
     // $benchmark.print("上报[" + client.getId() + "]属性");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 66; i < 76; i++) {
         data["temp" + i] = randomFloat(10, 30);
     }
     var msg = {
-        "properties": data
+        "properties": data,
+        "headers": {
+            "containsGeo": false,
+            "ignoreLog": true,
+            "ignoreStorage": true
+        }
     }
 
     //推送mqtt
-    return client.publishAsync(createTopic(client, "/properties/report"), 0, $benchmark.toJson(msg));
+    return client.publishAsync("/report-property", 0, $benchmark.toJson(msg));
 
 }
 
