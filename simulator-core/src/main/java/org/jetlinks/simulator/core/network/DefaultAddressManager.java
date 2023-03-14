@@ -4,6 +4,7 @@ import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
@@ -21,6 +22,8 @@ class DefaultAddressManager implements AddressManager {
     private static final List<InetAddressRef> addressRefs = new ArrayList<>();
 
     private static final boolean disableCheckAddressUsable = Boolean.getBoolean("address.check.disabled");
+
+    static Address allAddress;
 
     static {
         try {
@@ -49,8 +52,12 @@ class DefaultAddressManager implements AddressManager {
                     }
                 }
             }
+
             log.debug("load network interfaces: {}", addressRefs);
-        } catch (SocketException e) {
+            allAddress = new SimpleAddress(Inet4Address.getByAddress(new byte[]{
+                    0x00, 0x00, 0x00, 0x00
+            }));
+        } catch (Throwable e) {
             log.error("load network interfaces error loaded: {}", addressRefs, e);
         }
 
@@ -68,6 +75,7 @@ class DefaultAddressManager implements AddressManager {
             return false;
         }
     }
+
     @Override
     public Address takeAddress() {
 
@@ -76,7 +84,7 @@ class DefaultAddressManager implements AddressManager {
                 return new AddressInfo(addressRef);
             }
         }
-        throw new IllegalStateException("Too many open ports!");
+        return allAddress;
     }
 
     @Override
@@ -84,19 +92,21 @@ class DefaultAddressManager implements AddressManager {
         if (networkInterface == null) {
             return takeAddress();
         }
+        if ("0.0.0.0".equals(networkInterface)) {
+            return allAddress;
+        }
         for (InetAddressRef addressRef : addressRefs) {
             if (networkInterface.equals(addressRef.getNetworkInterface().getName())
-                    || networkInterface.equals(addressRef.getNetworkInterface().getDisplayName()) ||
-                    networkInterface.equals(addressRef.getAddress().getHostAddress())) {
+                    || networkInterface.equals(addressRef.getNetworkInterface().getDisplayName())
+                    || networkInterface.equals(addressRef.getAddress().getHostAddress())) {
                 if (addressRef.isAlive()) {
                     return new AddressInfo(addressRef);
                 } else {
                     throw new IllegalStateException("Too many open ports!");
                 }
             }
-
         }
-        throw new IllegalStateException("Unknown network interface:" + networkInterface);
+        throw new IllegalStateException("Unknown network interface:" + networkInterface + ". all interfaces:" + addressRefs);
     }
 
     @Override
@@ -106,6 +116,21 @@ class DefaultAddressManager implements AddressManager {
                 .filter(InetAddressRef::isAlive)
                 .map(InetAddressRef::getAddress)
                 .collect(Collectors.toList());
+    }
+
+    @AllArgsConstructor
+    protected static class SimpleAddress implements Address {
+        private final InetAddress address;
+
+        @Override
+        public InetAddress getAddress() {
+            return address;
+        }
+
+        @Override
+        public void release() {
+
+        }
     }
 
     protected static class AddressInfo implements Address {
@@ -166,7 +191,7 @@ class DefaultAddressManager implements AddressManager {
 
         @Override
         public String toString() {
-            return address + "(" + refCnt() + ")";
+            return address.getHostAddress() + "(" + refCnt() + ")";
         }
     }
 }
