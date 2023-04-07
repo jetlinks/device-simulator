@@ -2,6 +2,7 @@ package org.jetlinks.simulator.cmd;
 
 import org.jetlinks.simulator.cli.JLineInteractiveCommands;
 import org.jetlinks.simulator.cmd.benchmark.BenchmarkCommand;
+import org.jetlinks.simulator.cmd.coap.CoapOperationCommand;
 import org.jetlinks.simulator.cmd.http.HTTPOperationCommand;
 import org.jetlinks.simulator.cmd.mqtt.MqttOperationCommand;
 import org.jetlinks.simulator.cmd.tcp.TcpOperationCommand;
@@ -23,7 +24,8 @@ import reactor.core.Disposable;
                 MqttOperationCommand.class,
                 TcpOperationCommand.class,
                 UDPOperationCommand.class,
-                HTTPOperationCommand.class
+                HTTPOperationCommand.class,
+                CoapOperationCommand.class
         },
         customSynopsis = {""},
         synopsisHeading = "")

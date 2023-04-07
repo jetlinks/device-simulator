@@ -12,6 +12,8 @@ public class ExceptionUtils {
 
     public static String getErrorMessage(Throwable err) {
         String msg = err.getLocalizedMessage();
-        return msg == null ? err.getClass().getSimpleName() : msg;
+        msg= msg == null ? err.getClass().getSimpleName() : msg;
+
+        return msg;
     }
 }

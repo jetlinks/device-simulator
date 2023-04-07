@@ -1,0 +1,205 @@
+package org.jetlinks.simulator.core.network.coap;
+
+import io.netty.buffer.ByteBufUtil;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.SneakyThrows;
+import org.apache.commons.collections.MapUtils;
+import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.*;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
+import org.jetlinks.core.message.codec.CoapMessage;
+import org.jetlinks.protocol.official.ObjectMappers;
+import org.jetlinks.simulator.core.network.AbstractConnection;
+import org.jetlinks.simulator.core.network.Address;
+import org.jetlinks.simulator.core.network.AddressManager;
+import org.jetlinks.simulator.core.network.NetworkType;
+import org.springframework.http.MediaType;
+import reactor.core.publisher.Mono;
+
+import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@AllArgsConstructor
+public class CoapClient extends AbstractConnection {
+    static Configuration configuration = new Configuration()
+            .set(UdpConfig.UDP_DATAGRAM_SIZE, 65535)
+            .set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 65535);
+
+
+    private final String id;
+
+    @Getter
+    private final String basePath;
+
+    private final org.eclipse.californium.core.CoapClient client;
+
+    @Getter
+    private final Address address;
+
+    @Getter
+    private final CoapOptions options;
+
+    public CoapClient(CoapOptions options) {
+        this.id = options.getId();
+        String basePath = options.getBasePath();
+
+        this.basePath = basePath.endsWith("/") ? basePath.substring(0, basePath.length() - 1) : basePath;
+        this.options = options;
+        client = new org.eclipse.californium.core.CoapClient();
+
+        address = AddressManager
+                .global()
+                .takeAddress(options.getBindAddress());
+
+        client.setEndpoint(CoapEndpoint
+                                   .builder()
+                                   .setConnector(new UDPConnector(new InetSocketAddress(address.getAddress(), 0), configuration))
+                                   .build());
+    }
+
+    @Override
+    protected void doDisposed() {
+        super.doDisposed();
+        address.release();
+    }
+
+    private String getFullUri(String uri) {
+        if (uri.startsWith("coap")) {
+            return uri;
+        }
+        if (!uri.startsWith("/")) {
+            return basePath + "/" + uri;
+        }
+        return basePath + uri;
+    }
+
+    @SneakyThrows
+    private byte[] parsePayload(Object payload, String format) {
+        if (payload instanceof byte[]) {
+            return (byte[]) payload;
+        }
+        if (payload instanceof String) {
+            String hexMaybe = ((String) payload);
+            if (hexMaybe.startsWith("0x")) {
+                return ByteBufUtil.decodeHexDump(hexMaybe, 2, hexMaybe.length() - 2);
+            }
+            return hexMaybe.getBytes();
+        }
+        MediaType mediaType = MediaType.valueOf(format);
+
+        if (mediaType.includes(MediaType.APPLICATION_CBOR)) {
+            return ObjectMappers.CBOR_MAPPER.writeValueAsBytes(payload);
+        } else if (mediaType.includes(MediaType.APPLICATION_JSON)) {
+            return ObjectMappers.JSON_MAPPER.writeValueAsBytes(payload);
+        }
+        return String.valueOf(payload).getBytes();
+    }
+
+
+    public static OptionSet convertToOptions(Map<String, String> options) {
+        if (MapUtils.isEmpty(options)) {
+            return new OptionSet();
+        }
+        return convertToOptions(
+                options
+                        .entrySet()
+                        .stream()
+                        .map(e -> CoapMessage.parseOption(e.getKey(), e.getValue()))
+                        .collect(Collectors.toList())
+        );
+    }
+
+    public static OptionSet convertToOptions(Collection<Option> options) {
+        OptionSet opts = new OptionSet();
+        options.forEach(opts::addOption);
+        return opts;
+    }
+
+    public Mono<CoapResponse> getAsync(String uri,
+                            String format,
+                            Map<String, String> opts) {
+        return advancedAsync(CoAP.Code.GET, uri, null, format, opts);
+    }
+
+    public Mono<CoapResponse> postAsync(String uri,
+                             Object payload,
+                             String format,
+                             Map<String, String> opts) {
+        return advancedAsync(CoAP.Code.POST, uri, payload, format, opts);
+    }
+
+    public Mono<CoapResponse> putAsync(String uri,
+                            Object payload,
+                            String format,
+                            Map<String, String> opts) {
+        return advancedAsync(CoAP.Code.PUT, uri, payload, format, opts);
+    }
+
+    public Mono<CoapResponse> patchAsync(String uri,
+                              Object payload,
+                              String format,
+                              Map<String, String> opts) {
+        return advancedAsync(CoAP.Code.PATCH, uri, payload, format, opts);
+    }
+
+
+    @SneakyThrows
+    public Mono<CoapResponse> advancedAsync(CoAP.Code code,
+                                            String uri,
+                                            Object payload,
+                                            String format,
+                                            Map<String, String> opts) {
+
+        Request request = new Request(code);
+
+        OptionSet optionSet = convertToOptions(opts);
+
+        optionSet.setContentFormat(MediaTypeRegistry.parse(format));
+
+        request
+                .setURI(getFullUri(uri))
+                .setOptions(optionSet);
+
+        if (payload != null) {
+            request.setPayload(parsePayload(payload, format));
+        }
+
+
+        return Mono.create(sink->{
+            client.advanced(new CoapHandler() {
+                @Override
+                public void onLoad(CoapResponse response) {
+                    sink.success(response);
+                }
+
+                @Override
+                public void onError() {
+                    sink.success();
+                }
+            }, request);
+        });
+    }
+
+    @Override
+    public String getId() {
+        return id;
+    }
+
+    @Override
+    public NetworkType getType() {
+        return NetworkType.coap_client;
+    }
+
+    @Override
+    public boolean isAlive() {
+        return true;
+    }
+}
