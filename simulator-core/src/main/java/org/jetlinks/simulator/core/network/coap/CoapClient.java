@@ -23,6 +23,7 @@ import org.springframework.http.MediaType;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,9 +50,7 @@ public class CoapClient extends AbstractConnection {
 
     public CoapClient(CoapOptions options) {
         this.id = options.getId();
-        String basePath = options.getBasePath();
-
-        this.basePath = basePath.endsWith("/") ? basePath.substring(0, basePath.length() - 1) : basePath;
+        this.basePath = options.getBasePath();
         this.options = options;
         client = new org.eclipse.californium.core.CoapClient();
 
@@ -63,6 +62,7 @@ public class CoapClient extends AbstractConnection {
                                    .builder()
                                    .setConnector(new UDPConnector(new InetSocketAddress(address.getAddress(), 0), configuration))
                                    .build());
+        changeState(State.connected);
     }
 
     @Override
@@ -72,13 +72,7 @@ public class CoapClient extends AbstractConnection {
     }
 
     private String getFullUri(String uri) {
-        if (uri.startsWith("coap")) {
-            return uri;
-        }
-        if (!uri.startsWith("/")) {
-            return basePath + "/" + uri;
-        }
-        return basePath + uri;
+        return options.createUri(uri);
     }
 
     @SneakyThrows
@@ -124,29 +118,29 @@ public class CoapClient extends AbstractConnection {
     }
 
     public Mono<CoapResponse> getAsync(String uri,
-                            String format,
-                            Map<String, String> opts) {
+                                       String format,
+                                       Map<String, String> opts) {
         return advancedAsync(CoAP.Code.GET, uri, null, format, opts);
     }
 
     public Mono<CoapResponse> postAsync(String uri,
-                             Object payload,
-                             String format,
-                             Map<String, String> opts) {
+                                        Object payload,
+                                        String format,
+                                        Map<String, String> opts) {
         return advancedAsync(CoAP.Code.POST, uri, payload, format, opts);
     }
 
     public Mono<CoapResponse> putAsync(String uri,
-                            Object payload,
-                            String format,
-                            Map<String, String> opts) {
+                                       Object payload,
+                                       String format,
+                                       Map<String, String> opts) {
         return advancedAsync(CoAP.Code.PUT, uri, payload, format, opts);
     }
 
     public Mono<CoapResponse> patchAsync(String uri,
-                              Object payload,
-                              String format,
-                              Map<String, String> opts) {
+                                         Object payload,
+                                         String format,
+                                         Map<String, String> opts) {
         return advancedAsync(CoAP.Code.PATCH, uri, payload, format, opts);
     }
 
@@ -162,10 +156,15 @@ public class CoapClient extends AbstractConnection {
 
         OptionSet optionSet = convertToOptions(opts);
 
+        URI uriObj = new URI(getFullUri(uri));
+
+
+        optionSet.setUriPath(uriObj.getPath());
+
         optionSet.setContentFormat(MediaTypeRegistry.parse(format));
 
         request
-                .setURI(getFullUri(uri))
+                .setURI(uriObj)
                 .setOptions(optionSet);
 
         if (payload != null) {
@@ -173,7 +172,7 @@ public class CoapClient extends AbstractConnection {
         }
 
 
-        return Mono.create(sink->{
+        return Mono.create(sink -> {
             client.advanced(new CoapHandler() {
                 @Override
                 public void onLoad(CoapResponse response) {

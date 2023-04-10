@@ -226,11 +226,11 @@ public class CoapAttachCommand extends ConnectionAttachCommand {
         String path;
 
         public void createMessage(List<AttributedString> lines, CoapOptions options) {
-            lines.add(createLine(builder -> {
-                builder.append(method.name())
-                       .append(" ")
-                       .append(path == null ? "/" : path);
-            }));
+
+            lines.add(createLine(builder -> builder
+                    .append(method.name())
+                    .append(" ")
+                    .append(options.createUri(path))));
 
 
             createHeaderLine(lines, options.getOptions());

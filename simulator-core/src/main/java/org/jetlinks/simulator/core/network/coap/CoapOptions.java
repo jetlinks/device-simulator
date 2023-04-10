@@ -13,7 +13,21 @@ public class CoapOptions {
 
     private String basePath;
 
-    private Map<String,String> options;
+    private Map<String, String> options;
 
     private String bindAddress;
+
+    public void setBasePath(String basePath) {
+        this.basePath = basePath.endsWith("/") ? basePath.substring(0, basePath.length() - 1) : basePath;
+    }
+
+    public String createUri(String uri) {
+        if (uri.startsWith("coap")) {
+            return uri;
+        }
+        if (!uri.startsWith("/")) {
+            return basePath + "/" + uri;
+        }
+        return basePath + uri;
+    }
 }
