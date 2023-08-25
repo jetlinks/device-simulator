@@ -31,27 +31,7 @@ class DefaultAddressManager implements AddressManager {
             String networkInterfaces = System.getProperty("simulator.network-interfaces", ".*");
 
             Enumeration<NetworkInterface> inf = NetworkInterface.getNetworkInterfaces();
-            while (inf.hasMoreElements()) {
-                NetworkInterface it = inf.nextElement();
-                if (StringUtils.hasText(networkInterfaces)) {
-                    if (!it.getName().matches(networkInterfaces)) {
-                        continue;
-                    }
-                }
-                if (!it.isUp()) {
-                    break;
-                }
-                Enumeration<InetAddress> addr = it.getInetAddresses();
-                while (addr.hasMoreElements()) {
-                    InetAddress address = addr.nextElement();
-                    if (address instanceof Inet4Address
-                            && !address.isLoopbackAddress()
-                            && checkAddressUsable(address)) {
-                        addressRefs.add(new InetAddressRef(it, address, maxPorts));
-                        break;
-                    }
-                }
-            }
+            addAddressRef(networkInterfaces, maxPorts, inf);
 
             log.debug("load network interfaces: {}", addressRefs);
             allAddress = new SimpleAddress(Inet4Address.getByAddress(new byte[]{
@@ -61,6 +41,34 @@ class DefaultAddressManager implements AddressManager {
             log.error("load network interfaces error loaded: {}", addressRefs, e);
         }
 
+    }
+
+    private static void addAddressRef(String networkInterfaces, int maxPorts, Enumeration<NetworkInterface> inf) throws SocketException {
+        while (inf.hasMoreElements()) {
+            NetworkInterface it = inf.nextElement();
+            if (StringUtils.hasText(networkInterfaces)) {
+                if (!it.getName().matches(networkInterfaces)) {
+                    Enumeration<NetworkInterface> sub = it.getSubInterfaces();
+                    if (sub.hasMoreElements()) {
+                        addAddressRef(networkInterfaces, maxPorts, sub);
+                    }
+                    continue;
+                }
+            }
+            if (!it.isUp()) {
+                break;
+            }
+            Enumeration<InetAddress> addr = it.getInetAddresses();
+            while (addr.hasMoreElements()) {
+                InetAddress address = addr.nextElement();
+                if (address instanceof Inet4Address
+                        && !address.isLoopbackAddress()
+                        && checkAddressUsable(address)) {
+                    addressRefs.add(new InetAddressRef(it, address, maxPorts));
+                    break;
+                }
+            }
+        }
     }
 
     private static boolean checkAddressUsable(InetAddress address) {
