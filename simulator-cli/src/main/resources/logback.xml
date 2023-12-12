@@ -22,7 +22,7 @@
         </encoder>
     </appender>
 
-    <root level="WARN">
+    <root level="info">
         <appender-ref ref="TERMINAL"/>
     </root>
 </configuration>

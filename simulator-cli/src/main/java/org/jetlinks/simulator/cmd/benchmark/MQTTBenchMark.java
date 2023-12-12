@@ -79,6 +79,16 @@ class MQTTBenchMark extends AbstractBenchmarkCommand implements Runnable {
         @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
         private String[] topics;
 
+        @CommandLine.Option(names = {"--reconnectAttempts"}, description = "MQTT reconnect times", order = 7)
+        public void setReconnect(int attemps) {
+            super.setReconnectAttempts(attemps);
+        }
+
+        @CommandLine.Option(names = {"--reconnectInterval"}, description = "MQTT reconnect interval", order = 8)
+        public void setReconnectInterval0(long interval) {
+            super.setReconnectInterval(interval);
+        }
+
 
     }
 
