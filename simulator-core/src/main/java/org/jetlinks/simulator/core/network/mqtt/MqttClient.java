@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.netty.util.ReferenceCountUtil;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClientOptions;
@@ -33,6 +34,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -78,22 +80,43 @@ public class MqttClient extends AbstractConnection {
                 })
                 .closeHandler(e -> {
                     reconnect(options, fallback);
-                    log.info("客户端尝试重连:{},次数：{}", this.client.clientId(), counter.getAndIncrement());
+                    log.info("客户端尝试重连:{},次数：{}", this.client.clientId(), counter.get());
                 });
 
     }
 
 
-    private void reconnect(MqttOptions options, Runnable fallback) {
+    private void reconnect(MqttOptions options, Runnable retryFallback) {
         //超过重试次数且状态未连接放弃重试
         if (counter.get() > options.getReconnectAttempts() && !isAlive()) {
             counter.set(1);
             dispose();
         } else {
-
             disposables = Mono.delay(Duration.ofMillis(options.getReconnectInterval()))
-                              .doOnNext(i -> fallback.run())
-                              .flatMap(i -> Mono.<MqttClient>create(sink -> this.connect1(client, options, this.address, sink, counter, fallback)))
+                              .doOnNext(i -> retryFallback.run())
+                              .flatMap(i -> Mono.<MqttClient>create(sink -> this.connect1(client, options,
+                                                                                          retryFallback,
+                                                                                          (res, fallback) -> {
+                                                                                              if (res.failed()) {
+                                                                                                  sink.error(res.cause());
+                                                                                                  return;
+                                                                                              }
+                                                                                              MqttConnAckMessage msg = res.result();
+                                                                                              if (msg != null) {
+                                                                                                  if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
+                                                                                                      MqttClient mqttClient = this;
+                                                                                                      mqttClient.attribute("clientId", options.getClientId());
+                                                                                                      mqttClient.attribute("username", options.getUsername());
+                                                                                                      mqttClient.changeState(State.connected);
+                                                                                                      mqttClient.counter.getAndIncrement();
+                                                                                                      mqttClient.DEFAULT = retryFallback;
+                                                                                                      sink.success(mqttClient);
+                                                                                                  } else {
+                                                                                                      sink.error(new MqttConnectionException(msg.code()));
+                                                                                                  }
+                                                                                              }
+                                                                                              sink.success();
+                                                                                          })))
                               .subscribe();
         }
 
@@ -125,7 +148,28 @@ public class MqttClient extends AbstractConnection {
 
                        io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
 
-                       connect1(client, options, localAddress, sink, new AtomicInteger(1), retryFallback);
+                       connect1(client, options,
+                                retryFallback,
+                                (res, fallback) -> {
+                                    if (res.failed()) {
+                                        sink.error(res.cause());
+                                        return;
+                                    }
+                                    MqttConnAckMessage msg = res.result();
+                                    if (msg != null) {
+                                        if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
+                                            MqttClient mqttClient = new MqttClient(client, localAddress, options, new AtomicInteger(1), retryFallback);
+                                            mqttClient.attribute("clientId", options.getClientId());
+                                            mqttClient.attribute("username", options.getUsername());
+                                            mqttClient.changeState(State.connected);
+                                            sink.success(mqttClient);
+                                        } else {
+                                            sink.error(new MqttConnectionException(msg.code()));
+                                        }
+                                    }
+                                    sink.success();
+
+                                });
                    })
                    .doOnError(err -> localAddress.release());
     }
@@ -133,34 +177,12 @@ public class MqttClient extends AbstractConnection {
 
     private static void connect1(io.vertx.mqtt.MqttClient client,
                                  MqttOptions options,
-                                 Address localAddress,
-                                 MonoSink<MqttClient> sink,
-                                 AtomicInteger counter,
-                                 Runnable retryFallback) {
+                                 Runnable retryFallback,
+                                 BiConsumer<AsyncResult<MqttConnAckMessage>, Runnable> consumer) {
         client.connect(
                 options.getPort(),
                 options.getHost(),
-                res -> {
-                    if (res.failed()) {
-                        sink.error(res.cause());
-                        return;
-                    }
-
-                    MqttConnAckMessage msg = res.result();
-                    if (msg != null) {
-                        if (msg.code() == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
-                            MqttClient mqttClient = new MqttClient(client, localAddress, options, counter, retryFallback);
-                            mqttClient.attribute("clientId", options.getClientId());
-                            mqttClient.attribute("username", options.getUsername());
-                            mqttClient.changeState(State.connected);
-                            sink.success(mqttClient);
-                        } else {
-                            sink.error(new MqttConnectionException(msg.code()));
-                        }
-                    }
-                    sink.success();
-
-                });
+                res -> consumer.accept(res, retryFallback));
     }
 
 
