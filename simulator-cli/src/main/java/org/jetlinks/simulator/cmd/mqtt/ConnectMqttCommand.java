@@ -1,18 +1,13 @@
 package org.jetlinks.simulator.cmd.mqtt;
 
-import io.vertx.core.net.NetClientOptions;
 import org.jetlinks.simulator.cmd.AbstractCommand;
 import org.jetlinks.simulator.cmd.NetClientCommandOption;
-import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.network.mqtt.MqttClient;
-import org.springframework.util.CollectionUtils;
 import picocli.CommandLine;
 
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.time.Duration;
-import java.util.StringJoiner;
 
 @CommandLine.Command(name = "connect",
         showDefaultValues = true,
@@ -85,6 +80,17 @@ class ConnectMqttCommand extends AbstractCommand implements Runnable {
 
         @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
         private String[] topics;
+
+        @CommandLine.Option(names = {"--reconnectAttempts"}, description = "MQTT reconnect times", order = 7)
+        public void setReconnect(int attemps) {
+            super.setReconnectAttempts(attemps);
+        }
+
+        @CommandLine.Option(names = {"--reconnectInterval"}, description = "MQTT reconnect interval", order = 8)
+        public void setReconnectInterval0(long interval) {
+            super.setReconnectInterval(interval);
+        }
+
 
     }
 }

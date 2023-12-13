@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 mvn clean package -DskipTests \
 && clear \
-&& java \
+&&
+java \
    -Dfile.encoding=UTF-8 \
    -Xmx1G \
    -Dsimulator.max-ports=50000 \

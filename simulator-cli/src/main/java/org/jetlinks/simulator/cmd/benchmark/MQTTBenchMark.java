@@ -1,5 +1,6 @@
 package org.jetlinks.simulator.cmd.benchmark;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.simulator.cmd.NetClientCommandOption;
 import org.jetlinks.simulator.cmd.NetworkInterfaceCompleter;
 import org.jetlinks.simulator.core.Connection;
@@ -12,6 +13,7 @@ import reactor.core.publisher.Mono;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 
+@Slf4j
 @CommandLine.Command(name = "mqtt",
         showDefaultValues = true,
         description = {
@@ -37,7 +39,11 @@ class MQTTBenchMark extends AbstractBenchmarkCommand implements Runnable {
         return MqttClient
                 .connect(
                         InetSocketAddress.createUnresolved(command.getHost(), command.getPort()),
-                        commandOptions
+                        commandOptions,
+                        () -> {
+                            log.info("断开重试触发beforeConnect开始:{},{}", commandOptions.getUsername());
+                            ctx.beforeConnect(commandOptions);
+                        }
                 );
     }
 
@@ -78,6 +84,16 @@ class MQTTBenchMark extends AbstractBenchmarkCommand implements Runnable {
 
         @CommandLine.Option(names = {"--topics"}, description = "attach and subscribe topics", order = 6)
         private String[] topics;
+
+        @CommandLine.Option(names = {"--reconnectAttempts"}, description = "MQTT reconnect times", order = 7)
+        public void setReconnect(int attemps) {
+            super.setReconnectAttempts(attemps);
+        }
+
+        @CommandLine.Option(names = {"--reconnectInterval"}, description = "MQTT reconnect interval", order = 8)
+        public void setReconnectInterval0(long interval) {
+            super.setReconnectInterval(interval);
+        }
 
 
     }

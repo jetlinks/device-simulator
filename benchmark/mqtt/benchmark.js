@@ -1,6 +1,8 @@
 /**
  * JetLinks mqtt 官方协议模拟器
  *  benchmark mqtt --host=127.0.0.1 --port=8801 --script=demo/tcp/benchmark.js report=true reportLimit=100 interval=1000
+ *  --reconnectAttempts=3 重试次数
+ *  --reconnectInterval=1000 重试间隔
  */
 
 //绑定内置参数,否则匿名函数无法使用。
@@ -67,11 +69,11 @@ function reportProperties(client) {
             "containsGeo": false,
             "ignoreLog": true,
             "ignoreStorage": true
-        }
+    }
     }
 
     //推送mqtt
-    return client.publishAsync("/report-property", 0, $benchmark.toJson(msg));
+    return client.publishAsync(createTopic(client, "/properties/report"), 0, $benchmark.toJson(msg));
 
 }
 
