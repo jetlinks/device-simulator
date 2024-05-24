@@ -151,7 +151,7 @@
         <repository>
             <id>hsweb-nexus</id>
             <name>Nexus Repository</name>
-            <url>https://nexus.hsweb.me/content/groups/public/</url>
+            <url>https://nexus.jetlinks.cn/content/groups/public/</url>
             <snapshots>
                 <enabled>true</enabled>
                 <updatePolicy>always</updatePolicy>
