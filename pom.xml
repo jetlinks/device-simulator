@@ -141,7 +141,7 @@
     <repositories>
         <repository>
             <id>aliyun-nexus</id>
-            <name>aliyun</name>
+            <name>Aliyun Maven Repository</name>
             <url>https://maven.aliyun.com/nexus/content/groups/public/</url>
             <snapshots>
                 <enabled>false</enabled>
@@ -149,9 +149,9 @@
         </repository>
 
         <repository>
-            <id>hsweb-nexus</id>
-            <name>Nexus Repository</name>
-            <url>https://nexus.jetlinks.cn/content/groups/public/</url>
+            <id>jetlinks</id>
+            <name>JetLinks Maven Repository</name>
+            <url>https://nexus.jetlinks.cn/content/groups/jetlinks/</url>
             <snapshots>
                 <enabled>true</enabled>
                 <updatePolicy>always</updatePolicy>

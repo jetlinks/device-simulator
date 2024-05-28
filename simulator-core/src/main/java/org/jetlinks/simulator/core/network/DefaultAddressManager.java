@@ -4,7 +4,6 @@ import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
@@ -35,7 +34,7 @@ class DefaultAddressManager implements AddressManager {
 
             log.debug("load network interfaces: {}", addressRefs);
             allAddress = new SimpleAddress(Inet4Address.getByAddress(new byte[]{
-                0x00, 0x00, 0x00, 0x00
+                    0x00, 0x00, 0x00, 0x00
             }));
         } catch (Throwable e) {
             log.error("load network interfaces error loaded: {}", addressRefs, e);
@@ -43,13 +42,14 @@ class DefaultAddressManager implements AddressManager {
 
     }
 
-    private static void addAddressRef(String networkInterfaces, int maxPorts, Enumeration<NetworkInterface> inf) throws SocketException {
+    private static void addAddressRef(String networkInterfaces, int maxPorts, Enumeration<NetworkInterface> inf) throws SocketException, InterruptedException {
         while (inf.hasMoreElements()) {
             NetworkInterface it = inf.nextElement();
             if (StringUtils.hasText(networkInterfaces)) {
                 if (!it.getName().matches(networkInterfaces)) {
                     Enumeration<NetworkInterface> sub = it.getSubInterfaces();
                     if (sub.hasMoreElements()) {
+
                         addAddressRef(networkInterfaces, maxPorts, sub);
                     }
                     continue;
@@ -58,30 +58,36 @@ class DefaultAddressManager implements AddressManager {
             if (!it.isUp()) {
                 break;
             }
-            Enumeration<InetAddress> addr = it.getInetAddresses();
-            while (addr.hasMoreElements()) {
-                InetAddress address = addr.nextElement();
-                if (address instanceof Inet4Address
-                    && !address.isLoopbackAddress()
-                    && checkAddressUsable(address)) {
-                    addressRefs.add(new InetAddressRef(it, address, maxPorts));
-                    break;
-                }
-            }
+//            Enumeration<InetAddress> addr = it.getInetAddresses();
+//            while (addr.hasMoreElements()) {
+            it.getInterfaceAddresses()
+              .forEach(addr -> {
+                  InetAddress address = addr.getAddress();
+                  if (address instanceof Inet4Address
+                          && !address.isLoopbackAddress()
+                          && checkAddressUsable(address)) {
+                      addressRefs.add(new InetAddressRef(it, address, maxPorts));
+                  }
+              });
+
         }
+//        }
     }
 
     private static boolean checkAddressUsable(InetAddress address) {
         if (disableCheckAddressUsable) {
             return true;
         }
+        String host = System.getProperty("address.validate.host", "www.baidu.com");
         try (Socket socket = new Socket()) {
             socket.bind(new InetSocketAddress(address, 0));
+
             socket.connect(new InetSocketAddress(
-                System.getProperty("address.validate.host", "www.baidu.com"),
-                Integer.getInteger("address.validate.port", 80)), 2000);
+                    host,
+                    Integer.getInteger("address.validate.port", 80)), 2000);
             return true;
         } catch (Throwable err) {
+            log.debug("it地址连接{}失败", host);
             return false;
         }
     }
@@ -107,8 +113,8 @@ class DefaultAddressManager implements AddressManager {
         }
         for (InetAddressRef addressRef : addressRefs) {
             if (networkInterface.equals(addressRef.getNetworkInterface().getName())
-                || networkInterface.equals(addressRef.getNetworkInterface().getDisplayName())
-                || networkInterface.equals(addressRef.getAddress().getHostAddress())) {
+                    || networkInterface.equals(addressRef.getNetworkInterface().getDisplayName())
+                    || networkInterface.equals(addressRef.getAddress().getHostAddress())) {
                 if (addressRef.isAlive()) {
                     return new AddressInfo(addressRef);
                 } else {
@@ -122,10 +128,10 @@ class DefaultAddressManager implements AddressManager {
     @Override
     public List<InetAddress> getAliveLocalAddresses() {
         return addressRefs
-            .stream()
-            .filter(InetAddressRef::isAlive)
-            .map(InetAddressRef::getAddress)
-            .collect(Collectors.toList());
+                .stream()
+                .filter(InetAddressRef::isAlive)
+                .map(InetAddressRef::getAddress)
+                .collect(Collectors.toList());
     }
 
     @AllArgsConstructor
