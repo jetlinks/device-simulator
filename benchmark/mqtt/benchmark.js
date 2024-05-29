@@ -10,9 +10,9 @@ var $benchmark = benchmark;
 var productId = args.getOrDefault("productId", "simulator");
 var deviceIdPrefix = args.getOrDefault("deviceIdPrefix", "mqtt-test-");
 
-var $enableReport = "true" === args.getOrDefault("report", "true");
-var $reportLimit = parseInt(args.getOrDefault("reportLimit", "100"));
-var $reportInterval = parseInt(args.getOrDefault("interval", "1000"));
+var $enableReport = "true" === args.getOrDefault("report", "false");
+var $reportLimit = parseInt(args.getOrDefault("reportLimit", "5000"));
+var $reportInterval = parseInt(args.getOrDefault("interval", "600"));
 
 
 /**
@@ -28,8 +28,8 @@ function beforeConnect(index, options) {
     var secureId = "test";
     var secureKey = "test";
 
-     var username = secureId + "|" + now();
-     var password = md5(username + "|" + secureKey);
+    var username = secureId + "|" + now();
+    var password = md5(username + "|" + secureKey);
 
     options.setUsername(username);
     options.setPassword(password);
@@ -53,25 +53,34 @@ function onComplete() {
 
 }
 
+var count = 200*10000;
 
 function reportProperties(client) {
+    count--;
+    if (count < 0) {
+        return null;
+    }
+    if (count % 100000===0) {
+        $benchmark.print("剩余上报数量:"+count);
+    }
     //创建随机数据
     var data = {};
     // $benchmark.print("上报[" + client.getId() + "]属性");
-    for (let i = 66; i < 76; i++) {
-        data["temp" + i] = randomFloat(10, 30);
+    for (let i = 0; i < 10; i++) {
+        data["temp" + i] = randomInt(33, 35);
     }
     var msg = {
+        "timestamp": now(),
         "properties": data,
         "headers": {
             "containsGeo": false,
             "ignoreLog": true,
-            "ignoreStorage": true
+            "ignoreStorage": false
         }
     }
 
     //推送mqtt
-    return client.publishAsync("/report-property", 0, $benchmark.toJson(msg));
+    return client.publishAsync(createTopic(client, "/properties/report"), 1, $benchmark.toJson(msg));
 
 }
 
@@ -98,7 +107,7 @@ function handleReadProperty(client, msg) {
     var messageId = msg.getString("messageId");
     var properties = msg.getJsonArray("properties");
 
-    $benchmark.print("读取[" + client.getId() + "]属性:" + msg);
+    $benchmark.print("读取[" + client.getId() + "]属性:" + properties);
 
     //创建随机数据
     var data = {};
@@ -109,6 +118,7 @@ function handleReadProperty(client, msg) {
 
     //构造回复数据
     var reply = {
+        "deviceId": client.getId(),
         "messageId": messageId,
         "properties": data
     }
