@@ -12,6 +12,7 @@ import io.vertx.mqtt.messages.MqttConnAckMessage;
 import io.vertx.mqtt.messages.MqttPublishMessage;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.exception.BusinessException;
 import org.hswebframework.web.exception.I18nSupportException;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.core.utils.TopicUtils;
@@ -26,6 +27,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -254,6 +256,8 @@ public class MqttClient extends AbstractConnection {
                 return ackAwaits
                     .computeIfAbsent(i, ignore -> sink)
                     .asMono()
+                    .timeout(Duration.ofSeconds(5_000),
+                             Mono.error(() -> new BusinessException.NoStackTrace("timeout")))
                     .doFinally(ignore -> ackAwaits.remove(i, sink));
             })
             .doOnError(this::error)
