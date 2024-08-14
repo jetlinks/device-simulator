@@ -69,7 +69,7 @@ public class MqttClient extends AbstractConnection {
             .closeHandler(e -> dispose())
             .publishCompletionExpirationHandler(msgId -> {
                 takeAwait(msgId)
-                    .emitError(new I18nSupportException("error.timeout"),
+                    .emitError(new I18nSupportException.NoStackTrace("error.timeout"),
                                Reactors.emitFailureHandler());
 
             })
@@ -98,6 +98,7 @@ public class MqttClient extends AbstractConnection {
                        clientOptions.setTcpKeepAlive(true);
                        clientOptions.setMaxMessageSize(1024 * 1024);
                        clientOptions.setReusePort(true);
+                       clientOptions.setAckTimeout(10);
 
                        io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
 
@@ -256,8 +257,6 @@ public class MqttClient extends AbstractConnection {
                 return ackAwaits
                     .computeIfAbsent(i, ignore -> sink)
                     .asMono()
-                    .timeout(Duration.ofSeconds(5_000),
-                             Mono.error(() -> new BusinessException.NoStackTrace("timeout")))
                     .doFinally(ignore -> ackAwaits.remove(i, sink));
             })
             .doOnError(this::error)
