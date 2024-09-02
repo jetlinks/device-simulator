@@ -123,6 +123,10 @@ declare enum HttpMethod {
     GET, POST, PUT, DELETE, PATCH
 }
 
+declare enum CoAP_Code {
+    GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH
+}
+
 declare class HttpHeader {
     Authorization: string;
 }
@@ -135,6 +139,19 @@ declare class HttpRequest {
     contentType: string;
 }
 
+declare class CoAPRequest {
+    code: CoAP_Code;
+    uri: string;
+    contentType: string;
+    payload: string;
+    secureKey: string;
+    options: { };
+}
+
+declare interface CoAPResponse {
+
+}
+
 declare interface HttpResponse {
 
 }
@@ -144,6 +161,14 @@ interface HttpClient extends Connection {
     requestAsync(req: HttpRequest): Mono<HttpResponse>;
 
     request(req: HttpRequest): void;
+
+}
+
+interface CoAPClient extends Connection {
+
+    requestAsync(req: CoAPRequest): Mono<CoAPResponse>;
+
+    request(req: CoAPRequest): void;
 
 }
 
