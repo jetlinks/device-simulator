@@ -145,10 +145,9 @@ public class CoapClient extends AbstractConnection {
         String uri = String.valueOf(map.getOrDefault("uri", "/"));
         String contentType = String.valueOf(map.getOrDefault("contentType", "application/json"));
         Object payload = map.get("payload");
-        String secureKey = String.valueOf(map.get("secureKey"));
         @SuppressWarnings("all")
         Map<String, String> options = (Map<String, String>) map.getOrDefault("options", Collections.emptyMap());
-        return advancedAsync(code, uri, encryptPayload(convertPayload(payload), secureKey), contentType, options);
+        return advancedAsync(code, uri, payload, contentType, options);
     }
 
 
@@ -236,6 +235,10 @@ public class CoapClient extends AbstractConnection {
         return true;
     }
 
+    public byte[] officialEncryptPayload(Object payload, String secureKey) {
+        return Ciphers.AES.encrypt(convertPayload(payload), secureKey);
+    }
+
     private byte[] convertPayload(Object data) {
         if (data == null){
             return new byte[0];
@@ -251,4 +254,6 @@ public class CoapClient extends AbstractConnection {
     private byte[] encryptPayload(byte[] payload, String secureKey) {
         return Ciphers.AES.encrypt(payload, secureKey);
     }
+
+
 }

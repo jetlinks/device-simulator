@@ -170,6 +170,8 @@ interface CoAPClient extends Connection {
 
     request(req: CoAPRequest): void;
 
+    officialEncryptPayload(payload: object, secureKey: string): Uint8Array;
+
 }
 
 /**

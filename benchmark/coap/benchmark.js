@@ -61,10 +61,9 @@ function reportProperties(client) {
         options: {
 
         },
-        secureKey: secureKey,
         uri: createTopic(client, "/properties/report"),
         contentType: "application/json",
-        payload: toJson(msg)
+        payload: client.officialEncryptPayload(msg ,secureKey)
     });
 
 }
