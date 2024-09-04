@@ -1,6 +1,5 @@
 package org.jetlinks.simulator.core.network.coap;
 
-import com.alibaba.fastjson.JSON;
 import io.netty.buffer.ByteBufUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,13 +19,11 @@ import org.jetlinks.simulator.core.network.AbstractConnection;
 import org.jetlinks.simulator.core.network.Address;
 import org.jetlinks.simulator.core.network.AddressManager;
 import org.jetlinks.simulator.core.network.NetworkType;
-import org.jetlinks.supports.official.cipher.Ciphers;
 import org.springframework.http.MediaType;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -234,26 +231,5 @@ public class CoapClient extends AbstractConnection {
     public boolean isAlive() {
         return true;
     }
-
-    public byte[] officialEncryptPayload(Object payload, String secureKey) {
-        return Ciphers.AES.encrypt(convertPayload(payload), secureKey);
-    }
-
-    private byte[] convertPayload(Object data) {
-        if (data == null){
-            return new byte[0];
-        }
-        if (data instanceof byte[]){
-            return (byte[])data;
-        }
-        if (data instanceof Map || data instanceof Collection){
-            data = JSON.toJSONString(data);
-        }
-        return String.valueOf(data).getBytes(StandardCharsets.UTF_8);
-    }
-    private byte[] encryptPayload(byte[] payload, String secureKey) {
-        return Ciphers.AES.encrypt(payload, secureKey);
-    }
-
 
 }

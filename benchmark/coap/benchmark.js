@@ -6,6 +6,8 @@
 
 //绑定内置参数,否则匿名函数无法使用。
 var $benchmark = benchmark;
+var Cipher = Java.type("javax.crypto.Cipher");
+var SecretKeySpec = Java.type("javax.crypto.spec.SecretKeySpec");
 
 //echo -n '{"deviceId":"coap-test-001","properties":{"temperature":36.5}}' | coap post
 // coap://localhost:8009/report-property
@@ -58,12 +60,10 @@ function reportProperties(client) {
     //请求
     return client.requestAsync({
         code: "POST",
-        options: {
-
-        },
+        options: {},
         uri: createTopic(client, "/properties/report"),
         contentType: "application/json",
-        payload: client.officialEncryptPayload(msg ,secureKey)
+        payload: encrypt(toJson(msg), secureKey)
     });
 
 }
@@ -71,6 +71,21 @@ function reportProperties(client) {
 //根据jetlinks官方协议topic规则创建topic
 function createTopic(client, topic) {
     return "/" + productId + "/" + client.getId() + topic;
+}
+
+function encrypt(payload, key) {
+    try {
+        if (key != null && key.length() == 16) {
+            var skeySpec = new SecretKeySpec(key.getBytes(), "AES");
+            var cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            cipher.init(1, skeySpec);
+            return cipher.doFinal(payload.getBytes());
+        } else {
+           benchmark.print("payload encrypt error");
+        }
+    } catch (err) {
+        benchmark.print(err.message);
+    }
 }
 
 

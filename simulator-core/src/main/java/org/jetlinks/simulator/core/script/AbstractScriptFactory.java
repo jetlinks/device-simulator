@@ -43,9 +43,9 @@ public abstract class AbstractScriptFactory implements ScriptFactory {
     private final Utils utils = new Utils();
 
     public AbstractScriptFactory() {
-        denies.add("*");
+       // denies.add("*");
         allows(DEFAULT_ALLOWS);
-        //denies(DEFAULT_DENIES);
+        denies(DEFAULT_DENIES);
     }
 
     @Override
