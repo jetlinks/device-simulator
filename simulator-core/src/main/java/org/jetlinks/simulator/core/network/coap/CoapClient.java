@@ -25,6 +25,7 @@ import reactor.core.publisher.Mono;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -63,6 +64,18 @@ public class CoapClient extends AbstractConnection {
                                    .setConnector(new UDPConnector(new InetSocketAddress(address.getAddress(), 0), configuration))
                                    .build());
         changeState(State.connected);
+    }
+
+
+    public static Mono<CoapClient> create(CoapOptions options) {
+        Address address = AddressManager.global().takeAddress(options.getBindAddress());
+        try {
+            options.setBindAddress(address.getAddress().getHostAddress());
+            return Mono.just(new CoapClient(options));
+        } catch (Throwable err) {
+            address.release();
+            throw err;
+        }
     }
 
     @Override
@@ -116,6 +129,24 @@ public class CoapClient extends AbstractConnection {
         options.forEach(opts::addOption);
         return opts;
     }
+
+    public void request(Map<String, Object> map) {
+        requestAsync(map)
+                .subscribe();
+    }
+
+    public Mono<CoapResponse> requestAsync(Map<String, Object> map) {
+        CoAP.Code code = CoAP.Code.valueOf(String.valueOf(map.getOrDefault("code", "POST")).toUpperCase());
+
+
+        String uri = String.valueOf(map.getOrDefault("uri", "/"));
+        String contentType = String.valueOf(map.getOrDefault("contentType", "application/json"));
+        Object payload = map.get("payload");
+        @SuppressWarnings("all")
+        Map<String, String> options = (Map<String, String>) map.getOrDefault("options", Collections.emptyMap());
+        return advancedAsync(code, uri, payload, contentType, options);
+    }
+
 
     public Mono<CoapResponse> getAsync(String uri,
                                        String format,
@@ -171,7 +202,6 @@ public class CoapClient extends AbstractConnection {
             request.setPayload(parsePayload(payload, format));
         }
 
-
         return Mono.create(sink -> {
             client.advanced(new CoapHandler() {
                 @Override
@@ -201,4 +231,5 @@ public class CoapClient extends AbstractConnection {
     public boolean isAlive() {
         return true;
     }
+
 }

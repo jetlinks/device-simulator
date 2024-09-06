@@ -2,10 +2,13 @@ package org.jetlinks.simulator.cmd.benchmark;
 
 import org.apache.commons.collections.MapUtils;
 import org.jetlinks.simulator.cmd.AbstractCommand;
-import org.jetlinks.simulator.cmd.CommonCommand;
 import org.jetlinks.simulator.cmd.AttachCommand;
+import org.jetlinks.simulator.cmd.CommonCommand;
 import org.jetlinks.simulator.cmd.ListConnection;
-import org.jetlinks.simulator.core.*;
+import org.jetlinks.simulator.core.CompositeConnectionManager;
+import org.jetlinks.simulator.core.Connection;
+import org.jetlinks.simulator.core.ConnectionManager;
+import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.benchmark.Benchmark;
 import org.jetlinks.simulator.core.benchmark.BenchmarkOptions;
 import org.jetlinks.simulator.core.monitor.SystemMonitor;
@@ -35,6 +38,7 @@ import java.util.stream.Collectors;
                 BenchmarkListCommand.class,
                 TCPBenchMark.class,
                 UDPBenchMark.class,
+                CoAPBenchMark.class,
                 HTTPBenchMark.class
         })
 public class BenchmarkCommand extends CommonCommand implements Runnable {
