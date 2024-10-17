@@ -248,7 +248,6 @@ public class MqttClient extends AbstractConnection {
                          false)
                 .toCompletionStage())
             .flatMap(i -> {
-                sent(len);
                 if (qos == 0) {
                     return Mono.empty();
                 }
@@ -259,6 +258,7 @@ public class MqttClient extends AbstractConnection {
                     .asMono()
                     .doFinally(ignore -> ackAwaits.remove(i, sink));
             })
+            .doOnSuccess(ignore -> sent(len))
             .doOnError(this::error)
             .doFinally(ignore -> ReferenceCountUtil.safeRelease(payload));
     }
