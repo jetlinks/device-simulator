@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
                 TCPBenchMark.class,
                 UDPBenchMark.class,
                 CoAPBenchMark.class,
+                CoAPTcpBenchMark.class,
                 HTTPBenchMark.class
         })
 public class BenchmarkCommand extends CommonCommand implements Runnable {

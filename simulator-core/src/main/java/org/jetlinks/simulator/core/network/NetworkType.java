@@ -5,6 +5,7 @@ public enum NetworkType {
     mqtt_client,
     udp_client,
     http_client,
-    coap_client
+    coap_client,
+    coap_tcp_client,
 
 }
