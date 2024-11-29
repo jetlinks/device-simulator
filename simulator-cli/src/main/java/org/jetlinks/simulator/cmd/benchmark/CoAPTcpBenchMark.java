@@ -12,7 +12,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
 
-@CommandLine.Command(name = "coapTcp",
+@CommandLine.Command(name = "coap-tcp",
         showDefaultValues = true,
         description = {
                 "Create CoAP TCP Benchmark"

@@ -30,7 +30,7 @@ public class CreateCoapTcpCommand extends AbstractCommand implements Runnable {
             printf(" success!%n");
             main()
                     .getCommandLine()
-                    .execute("coapTcp", "attach", client.getId());
+                    .execute("coap-tcp", "attach", client.getId());
         } catch (Throwable err) {
             printfError(" error: %s %n", ExceptionUtils.getErrorMessage(err));
         }

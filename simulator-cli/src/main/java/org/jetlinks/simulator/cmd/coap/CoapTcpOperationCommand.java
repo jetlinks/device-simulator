@@ -3,7 +3,7 @@ package org.jetlinks.simulator.cmd.coap;
 import org.jetlinks.simulator.cmd.CommonCommand;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "coapTcp",
+@CommandLine.Command(name = "coap-tcp",
         description = "Coap Tcp client operations",
         subcommands = {
                 CreateCoapTcpCommand.class,
