@@ -400,13 +400,19 @@ public class BenchmarkCommand extends CommonCommand implements Runnable {
             super.setSize(size);
         }
 
-        @CommandLine.Option(names = {"--concurrency"}, description = "Concurrency", defaultValue = "8", order = 102)
+        @CommandLine.Option(names = {"--reconnect"}, description = "Auto Reconnect", defaultValue = "false", order = 102)
+        @Override
+        public void setReconnect(boolean reconnect) {
+            super.setReconnect(reconnect);
+        }
+
+        @CommandLine.Option(names = {"--concurrency"}, description = "Concurrency", defaultValue = "8", order = 103)
         @Override
         public void setConcurrency(int concurrency) {
             super.setConcurrency(concurrency);
         }
 
-        @CommandLine.Option(names = {"--script"}, description = "Script File", order = 103)
+        @CommandLine.Option(names = {"--script"}, description = "Script File", order = 104)
         @Override
         public void setFile(File file) {
             super.setFile(file);

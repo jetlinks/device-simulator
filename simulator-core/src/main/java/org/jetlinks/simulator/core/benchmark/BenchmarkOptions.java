@@ -17,6 +17,8 @@ public class BenchmarkOptions {
 
     private int concurrency = 100;
 
+    private boolean reconnect = false;
+
     private File file;
 
     private Map<String,Object> scriptArgs;

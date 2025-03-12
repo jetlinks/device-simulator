@@ -95,8 +95,7 @@ public class TcpClient extends AbstractConnection {
     public void send(Object data) {
         sendAsync(data)
                 .subscribe(
-                        ignore -> {
-                        },
+                        null,
                         error -> {
                             log.warn("send tcp [{}] error:{}", id, ExceptionUtils.getErrorMessage(error));
                         });
@@ -105,8 +104,7 @@ public class TcpClient extends AbstractConnection {
     public void sendFile(String data) {
         sendFileAsync(new File(data))
                 .subscribe(
-                        ignore -> {
-                        },
+                        null,
                         error -> log.warn("send tcp file [{}] error:{}", id, ExceptionUtils.getErrorMessage(error)));
     }
 

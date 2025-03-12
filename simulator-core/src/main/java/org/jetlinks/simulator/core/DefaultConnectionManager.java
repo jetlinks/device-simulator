@@ -49,9 +49,9 @@ public class DefaultConnectionManager implements ConnectionManager {
 
     private ReactorQL createQl(String ql) {
         return ReactorQL
-                .builder()
-                .sql("select id from dual where ", ql)
-                .build();
+            .builder()
+            .sql("select id from dual where ", ql)
+            .build();
     }
 
     @Override
@@ -60,13 +60,13 @@ public class DefaultConnectionManager implements ConnectionManager {
             return getConnections();
         }
         return Flux.defer(() -> queryCache
-                .computeIfAbsent(ql, this::createQl)
-                .start(ReactorQLContext.ofDatasource(ignore -> getConnections().map(Connection::attributes)))
-                .mapNotNull(record -> {
-                    String id = (String) record.asMap().get("id");
+            .computeIfAbsent(ql, this::createQl)
+            .start(ReactorQLContext.ofDatasource(ignore -> getConnections().map(Connection::attributes)))
+            .mapNotNull(record -> {
+                String id = (String) record.asMap().get("id");
 
-                    return id == null ? null : connections.get(id);
-                }));
+                return id == null ? null : connections.get(id);
+            }));
     }
 
     @Override
@@ -79,10 +79,10 @@ public class DefaultConnectionManager implements ConnectionManager {
         int sub = total - size;
 
         return getConnections()
-                .skip(ThreadLocalRandom.current().nextInt(0, sub))
-                .take(size)
-                .filter(Connection::isAlive)
-                ;
+            .skip(ThreadLocalRandom.current().nextInt(0, sub))
+            .take(size)
+            .filter(Connection::isAlive)
+            ;
     }
 
     @Override
@@ -94,8 +94,10 @@ public class DefaultConnectionManager implements ConnectionManager {
         connection.attribute("type", connection.getType().name());
         connection.attribute("connectTime", connection.getConnectTime());
 
-        connections.put(connection.getId(), connection);
-
+        Connection conn = connections.put(connection.getId(), connection);
+        if (conn != null && conn != connection) {
+            conn.dispose();
+        }
 
         return this;
     }

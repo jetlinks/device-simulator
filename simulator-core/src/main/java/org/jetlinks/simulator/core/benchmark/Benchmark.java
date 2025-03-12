@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.ConnectionManager;
 import org.jetlinks.simulator.core.ExceptionUtils;
@@ -18,16 +19,16 @@ import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
+import reactor.util.concurrent.Queues;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -66,6 +67,11 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     private final Deque<Snapshot> snapshots = new ConcurrentLinkedDeque<>();
 
+    private final Sinks.Many<Integer> pending = Sinks
+        .unsafe()
+        .many()
+        .unicast()
+        .onBackpressureBuffer(Queues.<Integer>unboundedMultiproducer().get());
 
     @Getter
     private Throwable lastError;
@@ -107,24 +113,38 @@ public class Benchmark implements Disposable, BenchmarkHelper {
             executeScript(Paths.get(options.getFile().toURI()));
         }
         disposable.add(
-                Flux.interval(Duration.ofSeconds(1))
-                        .flatMap(ignore -> this.snapshot())
-                        .subscribe()
+            Flux.interval(Duration.ofSeconds(1))
+                .flatMap(ignore -> this.snapshot())
+                .subscribe()
         );
 
+
         disposable.add(
-                Flux
-                        .range(options.getIndex(), options.getSize())
-                        .flatMap(this::connect, options.getConcurrency(), options.getConcurrency())
-                        .doOnNext(this::handleConnected)
-                        .then()
-                        .doFinally(ignore -> {
-                            for (Runnable runnable : completeHandler) {
-                                runnable.run();
-                            }
-                        })
-                        .subscribe()
+            pending
+                .asFlux()
+                .flatMap(this::doConnect, options.getConcurrency(), options.getConcurrency())
+                .then()
+                .doFinally(ignore -> {
+                    for (Runnable runnable : completeHandler) {
+                        runnable.run();
+                    }
+                })
+                .subscribe()
         );
+
+        Flux
+            .range(options.getIndex(), options.getSize())
+            .subscribe(e -> pending.emitNext(e, Reactors.emitFailureHandler()));
+
+    }
+
+    private Mono<Void> doConnect(int index) {
+        return this
+            .connect(index)
+            .doOnNext(conn -> {
+                handleConnected(index, conn);
+            })
+            .then();
     }
 
     public void reload() {
@@ -140,10 +160,10 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         }
 
         getConnectionManager()
-                .getConnections()
-                .filter(Connection::isAlive)
-                .doOnNext(Connection::reset)
-                .subscribe(this::fireConnectionListener);
+            .getConnections()
+            .filter(Connection::isAlive)
+            .doOnNext(Connection::reset)
+            .subscribe(this::fireConnectionListener);
 
         for (Runnable runnable : completeHandler) {
             runnable.run();
@@ -151,10 +171,31 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     }
 
-    private void handleConnected(Connection connection) {
+    private void retry(int index) {
+        if(isDisposed()){
+            return;
+        }
+        Schedulers
+            .parallel()
+            .schedule(() -> {
+                if(isDisposed()){
+                    return;
+                }
+                pending.emitNext(index, Reactors.emitFailureHandler());
+                print("retry connect [" + index + "]");
+            });
+    }
 
-        connectionManager
-                .addConnection(connection);
+    private void handleConnected(int index, Connection connection) {
+        if (getOptions().isReconnect()) {
+            connection
+                .onStateChange((before, after) -> {
+                    if (after == Connection.State.closed) {
+                        retry(index);
+                    }
+                });
+        }
+        connectionManager.addConnection(connection);
 
         fireConnectionListener(connection);
 
@@ -180,7 +221,7 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         }
     }
 
-    public long getConnectedSize(){
+    public long getConnectedSize() {
         return connectionManager.getConnectionSize();
     }
 
@@ -223,51 +264,51 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         }
         context.put("benchmark", this);
         return scriptFactory
-                .compileExpose(Script.of("benchmark_" + name, script)
-                                .returnNative(),
-                        BenchmarkHelper.class)
-                .call(this, context);
+            .compileExpose(Script.of("benchmark_" + name, script)
+                                 .returnNative(),
+                           BenchmarkHelper.class)
+            .call(this, context);
 
     }
 
     public Mono<Void> randomConnectionAsync(int size, Function<Connection, Object> handler) {
         return connectionManager
-                .randomConnection(size)
-                .flatMap(conn -> castMono(handler.apply(conn)), size)
-                .then();
+            .randomConnection(size)
+            .flatMap(conn -> castMono(handler.apply(conn)), size)
+            .then();
     }
 
     public Disposable randomConnection(int size, Function<Connection, Object> handler) {
         return randomConnectionAsync(size, handler)
-                .subscribe();
+            .subscribe();
     }
 
     public Disposable delay(Callable<Object> callable, int ms) {
         return Mono
-                .delay(Duration.ofMillis(ms))
-                .flatMap(ignore -> Mono
-                        .fromCallable(callable)
-                        .flatMap(this::castMono)
-                        .onErrorResume(err -> {
-                            error("delay execute", err);
-                            return Mono.empty();
-                        }))
-                .subscribe();
+            .delay(Duration.ofMillis(ms))
+            .flatMap(ignore -> Mono
+                .fromCallable(callable)
+                .flatMap(this::castMono)
+                .onErrorResume(err -> {
+                    error("delay execute", err);
+                    return Mono.empty();
+                }))
+            .subscribe();
     }
 
 
     public Disposable interval(Callable<Object> callable, int ms) {
         Disposable interval = Flux
-                .interval(Duration.ofMillis(ms))
-                .onBackpressureDrop()
-                .concatMap(ignore -> Mono
-                        .fromCallable(callable)
-                        .flatMap(this::castMono)
-                        .onErrorResume(err -> {
-                            error("interval execute", err);
-                            return Mono.empty();
-                        }))
-                .subscribe();
+            .interval(Duration.ofMillis(ms))
+            .onBackpressureDrop()
+            .concatMap(ignore -> Mono
+                .fromCallable(callable)
+                .flatMap(this::castMono)
+                .onErrorResume(err -> {
+                    error("interval execute", err);
+                    return Mono.empty();
+                }))
+            .subscribe();
 
         reloadable.add(interval);
         return () -> {
@@ -283,19 +324,19 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     private Mono<Void> snapshot() {
         return connectionManager
-                .summary()
-                .map(sum -> new Snapshot(snapshots.peekLast(), System.currentTimeMillis(), sum))
-                .doOnNext(snapshot -> {
-                    snapshots.add(snapshot);
-                    if (snapshots.size() >= 86400) {
-                        snapshots.removeFirst();
-                    }
-                })
-                .onErrorResume(err -> {
-                    error("snapshot", err);
-                    return Mono.empty();
-                })
-                .then();
+            .summary()
+            .map(sum -> new Snapshot(snapshots.peekLast(), System.currentTimeMillis(), sum))
+            .doOnNext(snapshot -> {
+                snapshots.add(snapshot);
+                if (snapshots.size() >= 86400) {
+                    snapshots.removeFirst();
+                }
+            })
+            .onErrorResume(err -> {
+                error("snapshot", err);
+                return Mono.empty();
+            })
+            .then();
     }
 
     private void error(String operation, Throwable e) {
@@ -312,17 +353,21 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         point.start();
 
         return connectionFactory
-                .apply(new ConnectCreateContextImpl(index))
-                .doOnNext(ignore -> point.success())
-                .onErrorResume(err -> {
-                    point.error(getErrorMessage(err));
-                    error("connect", err);
-                    return Mono.empty();
-                });
+            .apply(new ConnectCreateContextImpl(index))
+            .doOnNext(ignore -> point.success())
+            .onErrorResume(err -> {
+                print("create connection[" + index + "] error: " + ExceptionUtils.getErrorMessage(err));
+                point.error(getErrorMessage(err));
+                error("connect", err);
+                if (getOptions().isReconnect()) {
+                    retry(index);
+                }
+                return Mono.empty();
+            });
     }
 
     private String getErrorMessage(Throwable error) {
-        return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
+        return error.toString();
     }
 
     @Override

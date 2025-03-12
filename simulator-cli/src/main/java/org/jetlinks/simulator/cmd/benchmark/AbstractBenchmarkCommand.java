@@ -34,10 +34,6 @@ public abstract class AbstractBenchmarkCommand extends AbstractCommand implement
                 connectionManager,
                 ctx -> Mono
                         .defer(() -> this.createConnection(ctx))
-                        .onErrorResume(err -> {
-                            benchmark.print("create connection[" + ctx.index() + "] error: " + ExceptionUtils.getErrorMessage(err));
-                            return Mono.empty();
-                        })
         );
 
         BenchmarkCommand.addBenchmark(benchmark);
