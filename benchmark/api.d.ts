@@ -266,6 +266,13 @@ interface Benchmark<O extends ClientOptions, C extends Connection> {
 
     delay(callback: () => {}, delay: number): Disposable;
 
+    /**
+     * 持续获取链接进行上报,通常用于并发测试。
+     * @param concurrency 并行度
+     * @param callback 处理逻辑
+     */
+    continuousConnection(concurrency:number,callback:(c:C)=>{}):Disposable;
+
     randomConnectionAsync(limit: number, callback): Mono<void> | any;
 
     onConnected(callback: (c: C) => {}): Benchmark<O, C>;

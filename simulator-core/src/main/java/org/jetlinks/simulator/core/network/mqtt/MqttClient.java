@@ -256,11 +256,16 @@ public class MqttClient extends AbstractConnection {
                 return ackAwaits
                     .computeIfAbsent(i, ignore -> sink)
                     .asMono()
+                    .timeout(Duration.ofSeconds(10),
+                             Mono.error(new I18nSupportException.NoStackTrace("ack timeout")))
                     .doFinally(ignore -> ackAwaits.remove(i, sink));
             })
-            .doOnSuccess(ignore -> sent(len))
+//            .doOnSuccess((ignore) -> sent(len))
             .doOnError(this::error)
-            .doFinally(ignore -> ReferenceCountUtil.safeRelease(payload));
+            .doFinally(ignore -> {
+                sent(len);
+                ReferenceCountUtil.safeRelease(payload);
+            });
     }
 
     protected Sinks.One<Void> takeAwait(int msgId) {

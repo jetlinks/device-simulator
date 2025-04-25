@@ -23,58 +23,70 @@ var $reportInterval = parseInt(args.getOrDefault("interval", "600"));
  */
 //创建连接之前动态生成用户名密码
 function beforeConnect(index, options) {
-    var clientId = deviceIdPrefix + index;
+    var clientId = "test-" + index;
 
-    var secureId = "test";
-    var secureKey = "test";
 
-    var username = secureId + "|" + now();
-    var password = md5(username + "|" + secureKey);
+    var username = "test";
+    var password = "test";
 
+    // 官方协议3.2分支默认使用明文传输
+    //  username = username + "|" + now();
+    //  password = md5(username + "|" + password);
+
+    // options.setUsername("c0ff9451733b33225b9bf0879863c104");
     options.setUsername(username);
     options.setPassword(password);
     options.setClientId(clientId);
 }
+
+var reportJob;
 
 //全部连接完成后执行
 function onComplete() {
     if (!$enableReport) {
         return
     }
-    //定时执行1s
-    $benchmark
-        .interval(function () {
-            //随机获取1000个连接然后上报属性数据
-            if ($benchmark.getConnectedSize() > 0) {
-                return $benchmark
-                    .randomConnectionAsync($reportLimit, reportProperties);
-            }
-        }, $reportInterval)
+    // //定时执行1s
+    // reportJob =  $benchmark
+    //     .interval(function () {
+    //         //随机获取1000个连接然后上报属性数据
+    //         if ($benchmark.getConnectedSize() > 0) {
+    //             return $benchmark
+    //                 .randomConnectionAsync($reportLimit, reportProperties);
+    //         }
+    //     }, $reportInterval);
+
+    // 并发上报
+    reportJob = $benchmark.continuousConnection($reportLimit, reportProperties);
 
 }
 
-var count = 200*10000;
+var count = new java.util.concurrent.atomic.AtomicLong(50 * 10000);
 
 function reportProperties(client) {
-    count--;
-    if (count < 0) {
+
+    if (count.addAndGet(-1) < 0) {
+        reportJob.dispose();
         return null;
     }
-    if (count % 100000===0) {
-        $benchmark.print("剩余上报数量:"+count);
+    if (count.get() % 100000 === 0) {
+        $benchmark.print("剩余上报数量:" + count.get());
     }
+
     //创建随机数据
     var data = {};
     // $benchmark.print("上报[" + client.getId() + "]属性");
-    for (let i = 0; i < 10; i++) {
-        data["temp" + i] = randomInt(33, 35);
+    for (let i = 0; i < 1; i++) {
+        data["temp" + i] = randomInt(21, 33);
     }
     var msg = {
         "timestamp": now(),
         "properties": data,
         "headers": {
             "containsGeo": false,
-            "ignoreLog": true,
+            //忽略日志
+            "ignoreLog": false,
+            //忽略存储
             "ignoreStorage": false
         }
     }
@@ -88,12 +100,32 @@ function reportProperties(client) {
 function onConnected(client) {
 
     //订阅读取属性
+    // client
+    //     .subscribe("$share/g1/device/+/pi-agent/message/property/report",
+    //         0,
+    //         function (msg) {
+    //             $benchmark.print("收到数据[" + client.getId() + "");
+    //
+    //             // handleReadProperty(client, msg.payload().toJsonObject())
+    //         });
+    //订阅读取属性
     client
-        .subscribe(createTopic(client, "/properties/read"),
-            0,
+        .subscribe("$share/g1/device/+/+/message/property/report",
+            1,
             function (msg) {
-                handleReadProperty(client, msg.payload().toJsonObject())
+                $benchmark.print("收到数据[" + client.getId() + "");
+
+                // handleReadProperty(client, msg.payload().toJsonObject())
             });
+    //订阅读取属性
+    // client
+    //     .subscribe("$share/g1/device/+/+/online,offline",
+    //         1,
+    //         function (msg) {
+    //             $benchmark.print("收到数据[" + client.getId() + "");
+    //
+    //             // handleReadProperty(client, msg.payload().toJsonObject())
+    //         });
 
 }
 

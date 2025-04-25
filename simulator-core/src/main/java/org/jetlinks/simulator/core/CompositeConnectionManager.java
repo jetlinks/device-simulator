@@ -1,16 +1,22 @@
 package org.jetlinks.simulator.core;
 
+import io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.internal.ThreadLocalRandom;
 import lombok.AllArgsConstructor;
+import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 @AllArgsConstructor
 public class CompositeConnectionManager implements ConnectionManager {
-    private final Collection<ConnectionManager> all;
+    private final List<ConnectionManager> all;
 
     @Override
     public long getConnectionSize() {
@@ -30,10 +36,10 @@ public class CompositeConnectionManager implements ConnectionManager {
     @Override
     public Mono<Connection> getConnection(String id) {
         return Flux
-                .fromIterable(all)
-                .flatMap(manager -> manager.getConnection(id))
-                .take(1)
-                .singleOrEmpty();
+            .fromIterable(all)
+            .flatMap(manager -> manager.getConnection(id))
+            .take(1)
+            .singleOrEmpty();
     }
 
     @Override
@@ -58,6 +64,15 @@ public class CompositeConnectionManager implements ConnectionManager {
         return Flux.concat(Flux.fromIterable(all)
                                .map(c -> c.randomConnection(size)))
                    .take(size);
+    }
+
+    @Override
+    public Disposable onConnectionAdd(Consumer<Connection> consumer) {
+        Disposable.Composite disposable = Disposables.composite();
+        for (ConnectionManager connectionManager : all) {
+            disposable.add(connectionManager.onConnectionAdd(consumer));
+        }
+        return disposable;
     }
 
     @Override

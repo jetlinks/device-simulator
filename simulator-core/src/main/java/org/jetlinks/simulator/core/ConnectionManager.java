@@ -2,12 +2,16 @@ package org.jetlinks.simulator.core;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.reactor.ql.utils.CastUtils;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public interface ConnectionManager extends Disposable {
 
@@ -35,12 +39,19 @@ public interface ConnectionManager extends Disposable {
 
     Flux<Connection> randomConnection(int size);
 
+   default List<Connection> randomConnectionNow(int size){
+       return Reactors.await(randomConnection(size).collectList(), Duration.ofSeconds(1));
+   }
+
+    Disposable onConnectionAdd(Consumer<Connection> consumer);
+
     ConnectionManager addConnection(Connection connection);
 
     default Mono<Summary> summary() {
         return getConnections()
                 .reduce(new Summary(), Summary::add);
     }
+
 
     @Getter
     @Setter
@@ -52,6 +63,9 @@ public interface ConnectionManager extends Disposable {
         private long received;
         private long sentBytes;
         private long receivedBytes;
+
+        public Summary() {
+        }
 
         public Summary add(Connection connection) {
             size++;

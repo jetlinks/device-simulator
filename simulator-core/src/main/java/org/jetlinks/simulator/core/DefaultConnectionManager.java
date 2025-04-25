@@ -8,10 +8,14 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 public class DefaultConnectionManager implements ConnectionManager {
 
@@ -20,7 +24,9 @@ public class DefaultConnectionManager implements ConnectionManager {
     private static final Map<String, ReactorQL> queryCache = new ConcurrentReferenceHashMap<>();
 
     private final Map<String, Connection> connections = new ConcurrentHashMap<>(10240);
+    private final List<Connection> connectionList = new CopyOnWriteArrayList<>();
 
+    private final List<Consumer<Connection>> listener = new CopyOnWriteArrayList<>();
 
     @Override
     public void dispose() {
@@ -69,20 +75,28 @@ public class DefaultConnectionManager implements ConnectionManager {
             }));
     }
 
+
     @Override
     public Flux<Connection> randomConnection(int size) {
+        return Flux.fromIterable(randomConnectionNow(size));
+    }
+
+    @Override
+    public List<Connection> randomConnectionNow(int size) {
         int total = connections.size();
         if (total <= size) {
-            return Flux.fromIterable(connections.values()).filter(Connection::isAlive);
+            return connectionList;
         }
-
         int sub = total - size;
+        int skip = ThreadLocalRandom.current().nextInt(0, sub);
 
-        return getConnections()
-            .skip(ThreadLocalRandom.current().nextInt(0, sub))
-            .take(size)
-            .filter(Connection::isAlive)
-            ;
+        return connectionList.subList(skip, size + skip);
+    }
+
+    @Override
+    public Disposable onConnectionAdd(Consumer<Connection> consumer) {
+        listener.add(consumer);
+        return () -> listener.remove(consumer);
     }
 
     @Override
@@ -93,12 +107,15 @@ public class DefaultConnectionManager implements ConnectionManager {
         connection.attribute("id", connection.getId());
         connection.attribute("type", connection.getType().name());
         connection.attribute("connectTime", connection.getConnectTime());
-
+        connectionList.add(connection);
         Connection conn = connections.put(connection.getId(), connection);
         if (conn != null && conn != connection) {
             conn.dispose();
+            connectionList.remove(conn);
         }
-
+        for (Consumer<Connection> consumer : listener) {
+            consumer.accept(conn);
+        }
         return this;
     }
 }

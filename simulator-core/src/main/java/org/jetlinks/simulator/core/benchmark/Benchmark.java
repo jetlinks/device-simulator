@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.simulator.core.Connection;
 import org.jetlinks.simulator.core.ConnectionManager;
+import org.jetlinks.simulator.core.ContinuousConnectionFlux;
 import org.jetlinks.simulator.core.ExceptionUtils;
 import org.jetlinks.simulator.core.report.Reporter;
 import org.jetlinks.simulator.core.script.Script;
@@ -125,6 +126,9 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                 .flatMap(this::doConnect, options.getConcurrency(), options.getConcurrency())
                 .then()
                 .doFinally(ignore -> {
+                    if(disposable.isDisposed()){
+                        return;
+                    }
                     for (Runnable runnable : completeHandler) {
                         runnable.run();
                     }
@@ -172,13 +176,13 @@ public class Benchmark implements Disposable, BenchmarkHelper {
     }
 
     private void retry(int index) {
-        if(isDisposed()){
+        if (isDisposed()) {
             return;
         }
         Schedulers
             .parallel()
             .schedule(() -> {
-                if(isDisposed()){
+                if (isDisposed()) {
                     return;
                 }
                 pending.emitNext(index, Reactors.emitFailureHandler());
@@ -242,7 +246,12 @@ public class Benchmark implements Disposable, BenchmarkHelper {
 
     private Mono<Object> castMono(Object obj) {
         if (obj instanceof Publisher) {
-            return Mono.from(((Publisher<?>) obj));
+            return Mono
+                .fromDirect(((Publisher<Object>) obj))
+                .onErrorResume(err -> {
+                    error("execute", err);
+                    return Mono.empty();
+                });
         }
         return Mono.justOrEmpty(obj);
     }
@@ -269,6 +278,18 @@ public class Benchmark implements Disposable, BenchmarkHelper {
                            BenchmarkHelper.class)
             .call(this, context);
 
+    }
+
+    public Disposable continuousConnection(int concurrency, Function<Connection, Object> handler) {
+        Disposable disp = new ContinuousConnectionFlux(connectionManager)
+            .subscribeOn(Schedulers.parallel())
+            .flatMap(conn -> castMono(handler.apply(conn)), concurrency, concurrency)
+            .subscribe();
+        reloadable.add(disp);
+        return ()->{
+            reloadable.remove(disp);
+            disp.dispose();
+        };
     }
 
     public Mono<Void> randomConnectionAsync(int size, Function<Connection, Object> handler) {
