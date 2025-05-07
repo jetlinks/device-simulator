@@ -11,7 +11,7 @@ var productId = args.getOrDefault("productId", "simulator");
 var deviceIdPrefix = args.getOrDefault("deviceIdPrefix", "mqtt-test-");
 
 var $enableReport = "true" === args.getOrDefault("report", "false");
-var $reportLimit = parseInt(args.getOrDefault("reportLimit", "5000"));
+var $reportLimit = parseInt(args.getOrDefault("reportLimit", "100"));
 var $reportInterval = parseInt(args.getOrDefault("interval", "600"));
 
 
@@ -56,8 +56,11 @@ function onComplete() {
     //         }
     //     }, $reportInterval);
 
+    var size = $benchmark.getConnectedSize();
+
+    var concurrency = Math.max(1, Math.min(size * 8, $reportLimit));
     // 并发上报
-    reportJob = $benchmark.continuousConnection($reportLimit, reportProperties);
+    reportJob = $benchmark.continuousConnection(concurrency, reportProperties);
 
 }
 
@@ -85,9 +88,9 @@ function reportProperties(client) {
         "headers": {
             "containsGeo": false,
             //忽略日志
-            "ignoreLog": false,
+            "ignoreLog": true,
             //忽略存储
-            "ignoreStorage": false
+            "ignoreStorage": true
         }
     }
 

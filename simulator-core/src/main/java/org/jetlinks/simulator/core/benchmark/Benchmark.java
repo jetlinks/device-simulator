@@ -123,17 +123,14 @@ public class Benchmark implements Disposable, BenchmarkHelper {
         disposable.add(
             pending
                 .asFlux()
-                .flatMap(this::doConnect, options.getConcurrency(), options.getConcurrency())
-                .then()
-                .doFinally(ignore -> {
-                    if(disposable.isDisposed()){
-                        return;
-                    }
-                    for (Runnable runnable : completeHandler) {
-                        runnable.run();
+                .flatMap(c->doConnect(c).thenReturn(c), options.getConcurrency(), options.getConcurrency())
+                .subscribe(i->{
+                    if(i == options.getIndex() + options.getSize() - 1){
+                        for (Runnable runnable : completeHandler) {
+                            runnable.run();
+                        }
                     }
                 })
-                .subscribe()
         );
 
         Flux
