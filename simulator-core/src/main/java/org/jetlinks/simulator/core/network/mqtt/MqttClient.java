@@ -96,9 +96,10 @@ public class MqttClient extends AbstractConnection {
                        clientOptions.setLocalAddress(localAddress.getAddress().getHostAddress());
                        clientOptions.setAutoKeepAlive(true);
                        clientOptions.setTcpKeepAlive(true);
-                       clientOptions.setMaxMessageSize(1024 * 1024);
+                       clientOptions.setMaxMessageSize(64*1024*1024);
                        clientOptions.setReusePort(true);
                        clientOptions.setAckTimeout(10);
+                       clientOptions.setMaxInflightQueue(Integer.MAX_VALUE);
 
                        io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(vertx, clientOptions);
 
